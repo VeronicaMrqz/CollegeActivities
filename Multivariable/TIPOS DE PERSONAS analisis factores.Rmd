@@ -1,0 +1,680 @@
+---
+title: "Analisis Factores"
+author: "Verónica Márquez"
+date: "2/11/2021"
+output:
+  word_document: default
+---
+
+En este ejemplo se utilizará una muestra de una encuesta aplicada a 100 consumidores de una empresa para conocer su perfil y diseñar estratégias de mercadotecnia.
+
+Preguntas
+
+|Clave| Descripción|
+|--------|-------------|
+|V1| Preferiría pasar una tarde tranquila en casa que ir a una fiesta.|
+|V2| Siempre verifico los precios, incluso los de artículos menores.|
+|V3| Las revistas son más interesantes que las películas.|
+|V4| No compraría productos anunciados en las carteleras espectaculares.|
+|V5| Soy del tipo hogareño|
+|V6| Ahorro y uso cupones.|
+|V7| Las compañías gastan mucho dinero en publicidad.|
+
+La escala de las preguntas es de intervalo:
+Desacuerdo 1, 2, 3, 4, 5, 6, 7 De acuerdo, -5 No respuesta
+
+# Abrir excel
+En la hoja 1.1 del excel "DAtosM.xlsx" se encuentra la base de datos.
+
+```{r}
+#{r include=FALSE}
+library(readxl)
+Datos<-read_excel("DatosM.xlsx", sheet="1.1")
+
+#Si se tiene configurado el directorio de trabajo no hay que especificar la ruta donde está ubicado el Excel. De lo contrario si hay que hacerlo:
+
+#library(readxl)
+#Datos<-read_excel
+```
+
+# Seleccionar las variables a utilizar
+
+```{r}
+D1 <- Datos[,-1] #se quita la columna "persona" (renglones, columnas)
+
+
+#D1<-Datos[,-c(1,3)]  aquí se piden todos los renglones excepto la columna 1 y 3.
+
+#O qué variables dejar: D1<-Datos[,c(2,3,4,5,6,7,8)]
+
+#Otra opción de seleccionar variables pero ahora por su nombre es mediante la función “select()” de la librería “dplyr”
+
+#Instalación de la librería: install.packages(“dplyr”)
+
+#Llamar la librería: library(dplyr)
+
+#Código
+#D1<- Datos %>%
+#  select("V1","V2","V3","V4","V5","V6","V7”)
+
+#El símbolo %>% es para indicar que operaciones hacer con la base “Datos” 
+
+#  filter(Año==2020)
+#  filter(Año==2020 & Estado==“Nuevo León”) para filtrar renglones
+
+```
+
+# Verificación de observaciones faltantes
+
+Primero hay que convertir las respuestas NR de -5 a observaciones faltantes.
+
+Contemos cuantas hay
+
+```{r}
+colSums(D1==-5) #en R el igual es "==" aqui se esta sumando la cantidad de -5 que hay por columnas
+```
+Hay 3 de V2, 1 de V3 y 2 de V4
+
+Ahora hay que marcarlas como observaciones faltantes.
+
+```{r}
+D1[D1==-5]<-NA #Etiquetar los -5 como valores perdidos
+```
+
+El siguiente código presenta por variable el total de observaciones faltantes.
+
+```{r}
+
+colSums(is.na(D1))
+```
+
+#Tratar los NA: 
+Hay dos opciones de tratar las observaciones 
+
+Borrar los registros:
+Datos <- na.omit(D1) 
+
+Remplazarlos con la media o la mediana con la librería "zoo"
+
+D1 <- na.aggregate(D1,FUN=mean)
+
+D1 <- na.aggregate(D1,FUN=median)
+
+# Reemplazar los valores faltantes con la mediana
+
+```{r}
+library(zoo)
+D1 <- na.aggregate(D1,FUN=median)
+```
+
+# Analisis base de datos
+
+Antes de realizar el análisis de factores hay que analizar las variables para estudiar:
+
+- Su centralidad
+- Dispersión
+- Forma 
+- Observaciones extremas
+- Relaciones lineales
+
+Por una parte es para comprender las variables y por otra para:
+
+1) Ver si se cumplen los supuestos (normalidad y homocedasticidad)
+2) Ver si hay temas que pueden impactar en las correlaciones entre las variables (relaciones curvas, observaciones extremas)
+
+Esto puede realizarse con la función "describe()" de la librería "psych".
+
+```{r}
+library(psych)
+describe(D1)
+
+```
+
+Resultados:
+- Las preguntas con menor nivel promedio son V3, V4 y V5, las de mayor son V1, V2, V6 y V7
+- La variabilidad de las preguntas es aprox 1.8 según la desviación estándar, lo cual indica que hay homogeneidad de varianzas
+- Los datos están en el rango permitido de 1 a 7
+- El coeficiente de simetría (skew) es cercano a cero (Como la normal) y la curtosis (kurtosis) aproximadamente a -1 (mas baja que la normal de 3)
+
+# Describir en forma gráfica las variables
+# Graficos de dispersion e histograma
+
+También es conveniente analizar las relaciones entre las variables con métodos gráficos para ver si hay observaciones extremas o curvas que puedan afectar las correlaciones (recordemos que estas se basan en la linealidad y son afectadas por observaciones extremas).
+
+La librería “car” cuenta con la función de “scatterplotMatrix()” que nos da los gráficos de dispersion para cada par de variables y la distribución de cada variable.
+
+```{r}
+library(car)
+scatterplotMatrix(D1,smooth=FALSE)
+```
+
+Resultados:
+1) Las distribuciones de las variables no son normales.
+2) No se observan curvas en las relaciones, pareciera independencia
+3) No se observan observaciones extremas,
+
+Conclusiones
+- No se observa normalidad por los histogramas (pero no ocupamos porque no haremos inferencias)
+- No hay curvas que afecteb la correlación pero la relación pareciera de independencia, correlaciones bajas.
+- No se observan observaciones extremas, nuevamente las relaciones son de independencia.
+
+
+En caso de que se desee validar normalidad multivariada y observaciones extremas multivariadas se puede usar el paquete "MVN" (https://cran.r-project.org/web/packages/MVN/MVN.pdf). 
+
+#Si hubiera curvas
+Una corrección de las curvas podemos usar la transformación log log, aplicar logaritmos a las variables con curvas
+
+lnV1<-with(D1,log(V1))
+lnV2<-with(D1,log(V2)
+
+
+
+
+#Validar que podamos aplicar un análisis de factores
+
+El análisis de factores se puede realizar a partir de la matriz de varianzas y covarianzas, o bien a través de la matriz de correlación, como es más fácil de interpretar esta última, es recomendable basar el análisis en ella.
+
+La matriz de correlaciones se genera por computadora y es de la forma:
+  
+|       |       |       |      |       |
+|:-----:|:-----:|:-----:|:----:|:-----:|
+| r11=1 |  r12  |  r13  |......|  r1k  |
+|  r21  | r22=1 |  r23  |......|  r2k  |
+|  r31  |  r32  | r33=1 |......|  r3k  |
+|.......|.....  |.......|......|.......|
+|  rk1  |  rk2  |rk3    |......| rkk=1 |
+
+Donde, por ejemplo, r12, es la correlación lineal simple de la variable 1 con la 2. Todas las correlaciones toman valores de -1 a 1 y se puede probar su significancia estadística mediante el método del valor P.
+
+
+# Matriz de correlación
+Esto se hace analizando la matriz de correlación de las variables.
+
+La base principal del análisis es que exista correlación entre las variables y con ella estimar el análisis. La librería "psych" con la función "corplot" permite tener una buena vizualización de la matriz de correlaciones de las variables con su significancia.
+
+```{r}
+library(psych)
+corPlot(D1,cex =.5, upper=FALSE ,stars = TRUE,show.legend=FALSE)
+
+
+```
+Las correlaciones con * son significativas, sin embargo aquí no todas las correlaciones son significativas (principio fundamental de la técnica)
+
+H0: correlación = 0
+H1: correlación =! 0
+
+
+- Entre más se acerque a 1 o .1 la correlación es mejor porque las relaciones son fuertes.
+- Solo las que tienen * son las que son significativas (estadísticamente diferente de cero) es decir, sí existe correlación entre las variables. Si no tienen, son cero.
+- La matriz nos da un aidea de qué variables no se correlacionan con la totalidad, esas podrían no ser buenas variables para ele analisis, por ejemplo v6 y v4.
+
+OJO: este es un analisis bivariado, a veces es mejor una análisis más completo que contemple todas las variables.
+
+#Factibilidad de la técnica de análisis de factores
+
+Para determinar si es factible aplicar un análisis de componentes principales a un conjunto de datos existen tres medidas:
+
+1) El determinante de la matriz de correlaciones
+2) La prueba de contraste de esfericidad de Bartlett
+3) El análisis de suficiencia general o Kaiser-Meyer-Olkin
+
+# 1. Determinante de la matriz de correlaciones
+
+El determinante de una matriz de correlación oscila entre 0 y 1:
+
+0 ≤ |R| ≤ 1
+
+Donde:
+
+R = Matriz de correlación
+|R| = Es el determinante de la matriz de correlación
+
+Si el determinante es cercano a cero significa que las variables están altamente correlacionados y sí se puede realizar el análisis de factores. El problema de este enfoque es que no hay un límite para determinar si es o no cercano a cero.
+
+```{r}
+#Estimar la matriz de correlaciones
+R<-cor(D1)
+#Calcular el determinante de la matriz
+det(R)
+```
+El determinante es cercano a cero, es posible aplicar la técnica.
+
+
+# 2. Prueba de contraste de esfericidad de Bartlett
+
+La técnica de análisis de factores requiere que las variables estén altamente correlacionadas, en el caso contrario la matriz de correlaciones sería una matriz identidad y no tendría sentido aplicar el análisis. La prueba de Bartlett plantea las siguientes hipótesis:
+
+H0: R = I (no se debe de utilizar la técnica de análisis de factores)
+Ha: R diferente I (sí se puede aplicar)
+
+Donde:
+
+R = Matriz de correlación
+|R| = Determinante de la matriz de correlación
+I = Es la matriz identidad
+
+```{r}
+library(psych)
+cortest.bartlett(R,n=100)
+```
+
+Conclusión:
+
+Estadístico de prueba, Chi-cuadrado = 6858.764
+
+Método del valor P: Rechazar H0 a favor de Ha si a ≥ Valor P
+
+Fijando a = 0.05, se rechaza H0 a favor de Ha (si se puede aplicar el análisis) ya que a es mayor al valor p (0.05 > 0.00)
+
+Regla: siembre que alfa >= valor p, se rechaza H0 en favor de Ha.
+En este caso nos quedamos con Ha, y la matriz de correlación es diferente a la matriz identidad (diagonal con unos y lo demás cero) y si podemos aplicar la técnica de análisis de factores.
+
+
+#3. El análisis de suficiencia general o índice Kaiser-Meyer-Olkin
+
+Una vez que ser rechazó la hipótesis nula de la prueba de Bartlett, se realiza el análisis de suficiencia para determinar qué tan fuerte y adecuada será la posible solución que se encuentre con el análisis de factores.  La medida de suficiencia (MSA) que reporta el análisis se hace tanto de manera global como para cada variable, entre más grande sea su valor más fuerte será la solución.
+
+MSA= Measure of Sampling Adequacy
+
+
+Como referencia, Kaiser puso los siguientes valores en los resultados:
+  
+|Criterio        |Evaluación |
+|----------------|-----------|
+|MSA ≥ 0.9       |Excelente  |
+|0.8 ≤ MSA < 0.9 |Bueno      |
+|0.7 ≤ MSA < 0.8 |Aceptable  |
+|0.6 ≤ MSA < 0.7 |Regular    |
+|0.5 ≤ MSA < 0.6 |Bajo       |
+|MSA < 0.5       |Inaceptable|
+
+
+```{r}
+library(psych)
+KMO(R)
+```
+
+El índice glboal, MSA, es de 0.55 el cual tiene un nivel bajo. En la evaluación de los resultados que pueda obtener con un anpalisis de factores, será "bajo".
+
+Una vez realizado el análisis global, se realiza el análisis individual para cada variable para ver si es posible incrementar el índice global, esto se lleva a cabo con la matriz anti-imagen de correlación.
+
+Los elementos de la diagonal de la matriz anti-imagen de correlación, se conocen como MASi, e indican si una variable debe de permanecer en el análisis.
+
+  Paso 1. Se identifica a la o las  variables con un MSAi < 0.5, y se elimina del análisis a solo una, la que tenga el valor más pequeño
+
+  Paso 2. Se vuelve a realizar las estimaciones para identificar si aún existen variables con MSAi <0.5, si las hay, entonces se elimina del análisis a la que tenga el valor más pequeño.
+
+  Se termina el procedimiento cuando todas las variables que quedan en el análisis tienen un MSAi ≥ 0.5
+
+En el paso 1 se identifican las variables V6 y V2 porque tienen un índice menor a 0.5, se quita V6 por ser la del índice menor.
+
+#vamos a quitar las variables no correlacionadas
+
+Paso 1. Elegir la que tiene un índice mas pequeño, pero que sea menor a 0.5 (en este caso es la V6)
+```{r}
+
+D1<-D1[,-6]     #Para quitar V6
+
+#Volver a calcular el índice
+library(psych)
+R<-cor(D1)
+KMO(R)
+
+```
+La evaluación del análisis pasó de "Baja" a "regular" quitando V6.
+Ya no puedo quitar variables para mejorar segun la regla, porque ninguna tiene un índice menor a 0.5, ya no es posible quitar variables.
+
+#Estandarización de las variables
+
+Antes de estimar la técnica es necesario estandarizar las variables para que la escala no afecte los resultados.(Poner todas las variables en la misma escala, en este caso no era necesario porque todas están del 1 al 7)
+
+```{r}
+Dz <- data.frame(scale(D1)) #Estandarizar las variables para que estén en la misma escala
+```
+
+# Estimar el modelo de análisis de componentes principales
+RECUERDA: Los componentes son combinaciones lineales de las 6 variables, lo ideal es sacar solo un índice (6 combinaciones) pero solo se escogen los que expliquen más (la primera solución que trae la mayoría de la información + otro según la técnica) por lo que se decide quedarse con los componentes que expliquen al menos el 60% de las variables.
+
+#PRUEBA 1 con las 6 variables
+El método que se utilizará para estimar el modelo es el de componentes principales con la librería “psych”.
+
+La solución se hace primero con el total de variables sin rotación de componentes para poder explorar cuántos son necesarios.
+
+
+```{r}
+library(psych)
+
+modelo1<-principal(Dz,nfactors = 6, rotate= "none")
+modelo1
+
+```
+
+# Interpretación de los resultados
+Del ejemplo del comportamiento de los consumidores, se tienen seis variables entonces hay seis soluciones, esto es, seis autovalores/ eigenvalores (SS loadings).
+
+Asimismo, para cada autovalor hay un eigenvector, en total 6 (de manera vertical). Sin embargo, como el objetivo de la técnica es reducir variables, esta solución no es la deseada (si se entran 6 variables en la solución deben de salir menos variables). 
+
+*Consola: Significancia
+
+- SS loadings: Cuánto le toca de información a cada componente. Son los eigenvalores.
+- Variación explicada : (2.45/6)*100
+
+
+*Data frame: intepretar resolutados
+
+- Cada valor tiene un vector que mide la variabilidad de cada variable, representan las cargas de las variables originales sobre la nueva variable - de manera vertical - )
+
+Cada numero de este vector (correspondiente al eigenvalor en SS loadings) representa la correlación entre el componente 1 y la primera variable, es decir, la carga en el componente)
+
+- La suma de las correlaciones al cuadrado del vector es igual a su autovalor/eigenvalor (2.45).
+(ss loadings), el cuál cuantifica qué tanto explica la variación por el componente con respecto a la variación total manejada por el conjunto de variables.
+
+- ¿Qué tanto explicamos de cada variable con los componentes?
+
+
+1. Comunalidad (h1): suma de los cuadrados de las cargas de la variable 1. Siempre es igual a 1.
+
+2. Complejidad (com): es un índice de complejidad. Sugiere cuántos componentes se requieren para explicar las variables observadas. Representa el número de components necesarios para explicar las variables observadas. Una solución perfecta tiene una complejidad de 1 en cada variable, esto significa que solo se require de un componente para representar las variables.
+--> (suma de los cuadrados de cada carga )al cuadrado, entre  (suma de las cargas a la potencia 4)
+
+
+```{r}
+library(psych)
+
+modelo1<-principal(Dz,nfactors = 3, rotate="none")
+modelo1
+
+```
+Con tres variables explicamos el 84% (acumulative var tercer renglón de forma acumulada)
+
+La variable que más explicamos (de acuerdo con h2 la comodalidad) es la V2 pues tiene una comunalidad más alta (0.99) de su variabilidad.
+
+u2 = 1-h2 
+
+mean item complexity: media del índice de complejidad
+
+#Criterios para determinar el número de factores
+
+Los siguientes criterios permiten determinar el número de factores como posible solución inicial:
+
+1. Criterio a priori
+2. Criterio del índice de complejidad
+3. Criterio de la raíz latente
+4. Criterio del porcentaje de la variación explicada acumulada
+5. Criterio del gráfico de sedimentación
+
+
+1. Indice de complejidad (Mean item complexity)
+Fijarse en el mean item complexity, el cual sugiere cuántos componenetes son necesarios para explicar las variables observadas.
+
+
+2. Criterio de la raiz latente (eigen valores o SS loadings)
+Se recomienda este criterio para análisis de factores exploratorio. Este criterio es el más utilizado por los paquetes estadísticos. Un componente con un autovalor/eigenvalor menor a 1 se considera que no capta información significativa de las variables. Con este criterio se incluye en la solución solamente a los componentes con un autovalor/eigenvalor mayor o igual a 1.
+
+--> Todos los que tengan arriba de 1 en ss loadings
+
+3. Criterio del porcentaje de la variación explicada acumulada
+- Cumulative Var -
+Mediante este criterio se manejan “n” componentes como solución inicial, sólo si el porcentaje de la varianza explicado acumulado es mayor al 60%
+
+--> Busca explicar al menos 60% entre las dos, pero que no pase del 95%.
+
+4. Criterio del gráfico de sedimentación (gráfico del codo).
+La idea de este gráfico está enfocada en que si un componente es importante tendrá una varianza grande (un autovalor/eigenvalor grande). Al extraer los componentes el primero explica la mayor parte de la información, después el segundo que extrae menos información que el primero, y así sucesivamente. 
+
+En este gráfico en el eje de las Y se grafican los autovalores/eigenvalores y en el eje de las X los componentes. El gráfico tiene forma de precipicio, se retendrá la solución inicial solo los componentes que estén antes de la zona de sedimentación (antes del cambio drástico en pendiente).
+
+
+--> Graficar los eigen valores (y) valores (x) y donde cambian los valores por la pendiente, ahí indicará el número de componentes requeridos
+
+
+# 1. Grafico de sedimentación
+```{r}
+library(psych)
+R<-cor(D1)      #Matriz de correlación
+scree(R)         #Gráfico de sedimentación
+
+```
+Solo fijarse en PC (FACTORES PRINCIPALES). Podríamos decir que este método nos sugiere 3 compoenetes. 
+
+Pero la que más se repide son 2 componentes, por lo que declaramos que el modelo final contará con 2 componentes
+
+## Modelo final de componentes princiapales a interpretar
+
+```{r}
+library(psych)
+
+modelo1<-principal(Dz,nfactors = 2, rotate="none")
+modelo1
+```
+Con los dos se explica un 70%, se explica de acuerdo con h2, un 81% a V1 y un 31% a V2
+
+
+#Rotación de factores
+La matriz de componentes no rotada muestra los eigenvectores de cada eigenvalor. Cada elemento es llamado carga del componente y es interpretada como el grado de relación entre cada variable y el componente correspondiente. En esta matriz casi todas las cargas resultan altas y por ello no es posible agrupar variables, solo sirve para determinar de manera tentativa en cuántos componentes se agruparan las variables, no permite interpretar lo que representa cada componente.
+
+
+Es importante mencionar que el primer componente es el que alcanza a tener la mayor información captada por las variables, y que cada componente que se agrega a la solución recaba una cantidad menor información.
+
+##Varimax
+
+Utilizaremos el método de "Varimax" Es el método más utilizado, minimiza el número de variables que tienen saturaciones altas en cada factor
+
+
+```{r}
+library(psych)
+modelo2<-principal(Dz,nfactors = 2, rotate="varimax")
+modelo2
+
+```
+- La varianza acumulada no cambia (70%)
+- Lo que cambia son las correlaciones, lo que permitirá poner nombre a cada componente
+- ¿Qué variable es más importante?
+
+
+#Criterios para identificar cargas significativas
+
+Los criterios para determinar cargas significativas permiten identificar la variable con el factor, una variable solo debe de correlacionarse con un factor, primero se da la oportunidad con el criterio 1, luego con el 2 y así sucesivamente hasta colocarla (siempre y cuando sea significativa, si no lo es, se quita de la estimación y se vuelven a realizar las estimaciones).
+
+Una carga es significativa en función del tamaño de la muestra y del nivel de significancia utilizado, entre mayor sea la muestra más credibilidad hay en la información.
+
+
+#Criterio 1. Para determinar qué variables define al componente
+
+```{r}
+print(modelo2$loadings,cut=0.5, sort=TRUE)
+#Del modelo 2 daca las cargas y desaparece las que tenga menos de o.5 (Propiedad 1 =0.5)
+```
+
+Al componente 1 lo define la variable 1,3 y5, y al componente 2 el 2,4 y 7. Con dichas cargas ya se puede poner nombre a las variables, en este caso todas las variables están dentro.
+
+#Criterio 2. 
+Para todas las cargas que tengan entre 0.4 y 0.5 y que no expliquen ningun componente con el criterio 1.
+
+```{r}
+print(modelo2$loadings,cut=0.4, sort=TRUE) #(Prioridad 2 = 0.4)
+
+```
+
+El V3 explica a ambos componentes, se ignora, la variable define el componente con la carga más alta
+
+#Criterio 3
+
+```{r}
+print(modelo2$loadings,cut=0.3, sort=TRUE) 
+#Prioridad 3 =0.3
+```
+
+V6 no aparece porque no se correlaciona con ninguna
+
+
+#Interpretación de componentes:
+
+Componente 1: Introversión
+Representa a las personas que prefieren quedarse en casa que salir, V1, que son hogareñas, V5, y que opinan que las revistas son más interesantes que las películas, V3
+
+Componente 2: Publicidad y precios
+Representa a las personas que piensan que las compañías gastan mucho dinero en publicidad, V7, que no compran productos anunciados en los panorámicos, V4, y que no verifican los precios, V2. Personas que no se dejan influir por publicidad y que no verifican precios.
+
+
+Tomando en cuenta que el componente 1 explica más la compañía debería:
+- Gastar menos en carteleras espectaculares
+- No preocuparse por los precios de la competencia
+- Hacer servicios a domicilio
+- Anunciarse en revistas
+
+Así, la técnica de componentes principales ayuda a entender a los clientes.
+
+
+#Opciones gráficas de interpretar los componentes
+Usa las correlaciones y muestra la línea 329 en un gráfico
+
+
+```{r}
+library(psych)
+fa.diagram(modelo2)
+
+```
+
+#Gráfico de sedimentación
+También existe el gráfico de sedimentación que gráfica las cargas de las variables con los componentes.
+
+```{r}
+load <- modelo2$loadings[,1:2]             #obtiene las cargas de las variables
+plot(load,type="n")                                 # Dibujar el área de visualización
+text(load,labels=names(Dz),cex=.7)     # Añadir las variables
+
+```
+
+
+#Estimación de los componentes
+(Sacar los puntajes con el método de regresión)
+
+1. Primero estimamos el modelo indicando el método para estimar los scores
+
+```{r}
+library(psych)
+modelo2<-principal(Dz,nfactors = 2, rotate="varimax",
+                   scores=TRUE,method="regression")
+
+#2. Luego pedimos que los scores se guarden en la base de datos Dz
+
+
+Dz$PC1<-modelo2$scores[,1] #Pronósticos
+Dz$PC2<-modelo2$scores[,2]
+
+#Los coeficientes de cada variable son:
+
+modelo2$weights
+
+#Los puntajes de los componentes se obtienen multiplicando cada coeficiente por el valor estandarizado de las variables.
+
+
+```
+
+
+#Medidas de consistencia para hacer un índice
+
+Consideraciones:
+
+1) Las variables que forman el índice (variables que definen el componente) deben de moverse todas en un mismo sentido.
+
+2) Si hay dos componentes, para hacer el índice se puede sacar un promedio ponderado con el % de la varianza explicada o elegir el que tiene el mayor poder de explicación.
+
+
+#Alda de Cronbach
+Una alternativa para validar si las variables permiten hacer un índice es utilizar una medida de consistencia interna, el alfa de Cronbach.
+
+Esta medida permite validar que todas las variables se muevan en un mismo sentido (más es mejor o menos es mejor), si una se mueve en un sentido inverso puede cancelar los efectos de otras variables a la hora de hacer el índice.
+
+El alfa de Cronbach toma un rango de 0 a 1, un valor confiable es de al menos 0.6.
+
+
+##Componente 1: V1, V3 y V5
+
+```{r}
+library(psych)
+alpha(Dz[,c(1,3,5)],check.keys=TRUE) #posición en que se encuentran las variables
+
+```
+
+R console: El alpha es de 0.81(debe ser de 0.6 para arriba) y si podemos hacer un índice con el componente 1,v1,v3 y v5
+
+Data.frame 3 x 8: raw-alpha ve cuánta sería la consistencia si se borrara una varible. En este caso todas las variables entran en el índice.
+
+También nos da información sobre si podemos mejorar el índice quitando alguna variable. Quitando V1 y dejando las demas el alfa baja a 0.65, quitando V3 queda en 0.80 y quitando V5 el alfa queda en 0.77, lo cual implica que no conviene quitar variables.
+
+
+
+##Componente 2: v2, v4 y v7
+
+```{r}
+library(psych)
+alpha(Dz[,c(2,4,6)],check.keys=TRUE)
+
+```
+La alpha es 0.6, por lo que si se puede hacer un índice con las variables de dicho componente (a pesar de que V2 tiene correlación negativa). Pero si se quitara V2 subiría a 0.64 pero es marginal, no cambia drásticamente, no hay evidencia para quitar variables.
+
+Sin embargo nos da un warning que V2 tiene un Sentido inverso con V4 y V7. El procedimiento hace el rescalamiento para que tengan el mismo sentido e indica que si se quita V2, permanenciendo V4 y V7, el alfa queda de 0.64, quitando V4, de 0.41 y V7 de 0.42, lo cual sugiere no quitar variables, pero si rescalar si vamos a realizar un índice.
+
+
+#Hay que cambiar la escala de V2 del componente 2
+Si una variable tiene un sentido inverso con otras, como V2, es necesario rescalarla para poder hacer el índice. Para ello restamos al valor máximo de la variable el valor observado.
+
+
+```{r}
+Dz$V2r<-with(Dz,max(V2)-V2)
+
+```
+
+La variable V2r ya se moverá en el mismo sentido de V4 y V7.
+
+Una vez que se cambio la escala se tiene que volver a estimar el modelo y los componentes.
+
+
+#Estimación del modelo de componentes con la variable V2 con cambio de escala.
+
+```{r}
+library(psych)
+modelo3<-principal(Dz[,c(1,3,4,5,6,9)],nfactors = 2, rotate="varimax", scores=TRUE,method="regression")
+
+Dz$PC1<-modelo3$scores[,1]
+Dz$PC2<-modelo3$scores[,2]
+
+```
+
+En la base de datos aparecerán los componentes estimados ya corregidos.
+
+#Rescalamiento de variables (Normalización)
+Por último, los componentes estimados están en la escala de la normal estándar de -2 a 2. Pueden expresarse en escala 0 a 100 
+
+
+indicador normalizado = (indicador- mínimo) / (máximo - mínimo)
+
+```{r}
+Dz$Indice1<-with(Dz,100*(PC1-min(PC1))/(max(PC1)-min(PC1)))
+Dz$Indice2<-with(Dz,100*(PC2-min(PC2))/(max(PC2)-min(PC2)))
+
+```
+
+
+#Finalizar
+En este ejercicio se tienen dos índices, si se quisiera tener solo uno, se podría elegir el componente que explica más la varianza total de los datos, el componente 1, o bien sacar un promedio de los dos índices ponderando por la varianza explicada asegurando que el ponderador sume 1.
+
+Indice = w1* Indice1 + w1* Indice2
+
+Donde:
+w1 y w2 = (varianza explicada componente 1 o 2) / (varianza explicada componente 1 + varianza explicada componente 2)
+
+
+```{r}
+#Ponderadores
+w1=.39/(0.39+0.31) #(0.39)/(0.39+0.31)
+w2=0.31/(0.39+0.31) # (0.31) /(0.39+0.31)
+#Indice global
+Dz$Indice<-with(Dz,w1*Indice1+w2*Indice2)
+
+```
+
+
+

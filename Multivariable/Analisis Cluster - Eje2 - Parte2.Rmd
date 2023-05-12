@@ -1,0 +1,246 @@
+---
+title: "Analisis Cluster K-Medias Eje2"
+date: "19/9/2021"
+output: word_document
+---
+Para este ejemplo se utilizarán los indicadores sociodemográficos del Censo de Población y Vivienda 2020 para aplicar la técnica de análisis cluster K-Medias con los componentes estimados en el análisis de factores.
+
+Los dos omponentes estimados en escala 0 a 100 se utilizarán para estimar los clusters y las indicadores para describirlos.
+
+Fuente CONAPO
+URL: https://www.gob.mx/conapo/documentos/indices-de-marginacion-2020-284372
+
+Indicadores
+
+|Clave  | Descripción |
+|-------|-------------|
+|ANALF  |	% población analfabeta de 15 años o más|
+|SBASC  |	% población de 15 años o mas sin educación básica|
+|OVSDE  |	% ocupantes en viviendas particulares habitadas sin drenaje ni excusado|
+|OVSEE  |	% ocupantes en viviendas particulares habitadas sin energía eléctrica|
+|OVSAE  |	% ocupantes en viviendas particulares habitadas sin agua entubada en el ámbito de la vivienda|
+|OVPT   |	% ocupantes en viviendas particulares habitadas con piso de tierra|
+|VHAC   |	% viviendas particulares habitadas con hacinamiento|
+|PL.5000|	% población que vive en localidades menores a 5 000 habitantes|
+|PO2SM  |	% población ocupada con ingresos de hasta 2 salarios mínimos|
+
+# Base de datos
+
+Código para cargar base de datos
+
+```{r }
+
+
+#Abrir excel
+library(readxl)
+Datos <- read_excel("DatosMl.xlsx", sheet="2.1")
+```
+
+Código para crear base de datos para realizar los clusters con las variables PNA, Ingles y FTE:
+
+```{r}
+D1<-Datos[,c("Indice1","Indice2" )]
+```
+
+# Procesamiento de datos
+Se puden usar variables numéricas en escala de razón o de intervalo, asimimsmo variables categóricas en escala nominal u ordinal expresadas como variables binarias (dummies).
+
+## Datos faltantes
+
+Para validar si existen datos faltantes en la base se utiliza el siguiente código:
+
+```{r}
+colSums(is.na(D1))
+```
+En este ejemplo no hay datos faltantes, en caso de tenerlos se tiene la opción de eliminarlos de la base o reemplazarlos por la media.
+
+Datos <- na.omit(Datos) # código para borrarlos
+Datos <- na.aggregate(data) #Código para reemplazarlos con la media de cada columna
+
+De la última función se requiere del paquete "zoo".
+
+## Estandarización de variables
+Para que la escala de las variables no sesgue los resultados, se deben de expresar todas las variables en una misma escala. Esto se hace estandarizando las variables. El código es:
+
+```{r}
+D1z <- scale(D1)
+```
+
+
+# Análisis cluster k-Medias (No jerárquico)
+
+El análisis multivariante por conglomerados no jerárquico es un procedimiento que sirve cuando tenemos idea de cuántos grupos de conglomerados existen; nos permite decidir el número de grupos. Generalmente se utiliza el método de K – medias que minimiza la varianza, la distancia entre centros o la distancia entre centroides. 
+
+Los k conglomerados se definen a partir de unos centros iniciales (centroides), tomando de forma aleatoria k objetos o los primeros k en secuencia.
+
+Mediante una medida de distancia, las observaciones se asignan al conglomerado cuyo centro esté más próximo. Esta asignación produce un cambio en los centros iniciales. A partir de esta asignación inicial comienza un proceso iterativo de reasignaciones en la que una observación puede cambiar de conglomerado si existe otro centro más próximo que el del conglomerado inicial. El proceso termina cuando no hay cambio en los centros.
+
+Una ventaja que ofrece este método no jerárquico es el tiempo de proceso (y por tanto el costo), cuando tenemos muchas observaciones, el tiempo de estimación es mucho menor que en el jerárquico, ya que al suponer el número de grupos, automáticamente los pasos del procedimiento se acortan.
+
+## Estimación de los clusters con k-Medias
+
+Para hacer la estimación se utiliza la función "kmeans" con los datos estandarizados. Por lo pronto se estimarán 5 cluster.
+
+```{r}
+# para que cada que se corra se utilice el mismo punto inicial aleatorio
+set.seed(61) #Para técnicas estadísticas con condiciones iniciales
+
+#Estimación de cluster k-medias
+KM <- kmeans(D1z, centers=4)
+```
+
+## Visualización de los clusters con k-Medias
+Primero hay que crear una columna en la base de datos original con la pertenencia de las observaciones a cada cluster.
+
+
+```{r}
+Datos$ClusterKM <- KM$cluster
+```
+
+### Vizualización clusters con k-Medias
+Para visualizar gráficamentelos cluster podemos hacer un gráfico de dispersión de las variables y que en el gráfico se marque en colores a qué cluster pertence cada observación. 
+
+Una opción es la función plot de r:
+
+Ejemplo: plot(Datos$Indice1~Datos$Indice2, col = Datos$ClusterKM)
+
+Sin embargo, se visualiza mejor con la función de r "fviz_cluster".
+
+Otra opción la función "fviz_cluster"
+
+    library(factoextra)
+    fviz_cluster(KM,
+                 data=Datos[,c("Indice1","Indice2")],
+                 geom="point",
+                 stand = FALSE,
+                 show_labels = FALSE)+
+      scale_y_continuous(breaks = seq(0,100,10))+
+      scale_x_continuous(breaks = seq(0,100,10))
+
+Otra más la de formato tabla
+
+```{r}
+library("dplyr")
+
+#Tabla con datos de las n=1000 observaciones
+Tabla1<-Datos %>%
+  summarize("n"=n(), 
+            "Índice1" = round(mean(Indice1),1), 
+            "Índice2" =round(mean(Indice2),1))
+
+#Tabla por cada cluster
+Tabla2<-Datos %>%
+  group_by(ClusterKM) %>% 
+  summarize("n"=n(), 
+            "Índice1" = round(mean(Indice1),1), 
+            "Índice2" =round(mean(Indice2),1))
+
+#Tabla agregada
+Tabla <-bind_rows(Tabla2, Tabla1)
+Tabla
+```
+
+Con estos datos se puede hacer la descripción de los clusters:
+
+|Cluster |Descripción |
+| ---------- | ---------- |
+|1 |Municipios con marginación promedio en índice 1 y baja en 2|
+|2 |Municipios con marginación alta en índice 1 y baja en 2|
+|3 |Municipios con marginación alta en índice 1 y baja  2|
+|4 |Municipios con marginación promedio en índice 1 y 2|
+|5 |Municipios con margiación alta en índice 1 y baja en 2|
+
+
+## Determinación del número optimo de cluster con k-medias
+
+### Método del codo (elbow method)
+Cuando no se dispone de información sobre cuántos cluster estimar, se puede determinar el valor de "k" total de cluster de forma iterativa, mediante un rango de valores de K se busca el valor que minimiza la suma de la varianza total intra-cluster. Este procedimiento se conoce cómo el método del codo, se utiliza el valor de k donde la varianza intragrupos toma el valor mínimo (precisamente es en el punto de la gráfica que aparenta un codo).
+
+La función fviz_nbclust() automatiza este proceso y genera una representación de los resultados.
+
+```{r}
+library(factoextra)
+fviz_nbclust(D1z, kmeans, method = "wss")
+```
+El gráfico sugiere entre tres y cuatro cluster para el cluster de k-medias. Continuemos con 5 para comparalo con los resultados del jerárquico.
+
+
+## Descripción de cluster con variables externas
+Los cluster se pueden describir también con las variables que se usaron para construir los índices
+
+Ahora se hace una tabla con las variables utilizadas para hacer el cluster y para describirlos.
+
+```{r}
+library("dplyr")
+#Tabla con datos de las n=2469 observaciones
+Tabla1<-Datos %>%
+  summarize("n"=n(), 
+            "Pob. Analfabeta" = round(mean(ANALF),1), 
+            "Pob. 15 sin educación básica" =round(mean(SBASC),1),
+            "Pob. en viv. sin drenaje"=round(mean(OVSDE),1),
+            "Pob. en viv. sin energia"= round(mean(OVSEE),1),
+            "Pob. en viv. sin agua entubada"=round(mean(OVSAE),1),
+            "Pob. en viv. con piso tierra" = round(mean(OVPT),1),
+            "Pob. en viv. con hacinamiento" = round(mean(VHAC),1),
+            "Pob. en menos 5mil hab."= round(mean(PL.5000),1),
+            "Pob. con ingresos 3 sal. min." = round(mean(PO2SM),1),
+            "Indice1" = round(mean(Indice1),1),
+            "Indice2"= round(mean(Indice2),1),
+            "Indice"= round(mean(Indice),1))
+
+#Tabla por cada cluster
+Tabla2<-Datos %>%
+  group_by(ClusterKM) %>% 
+  summarize("n"=n(), 
+            "Pob. Analfabeta" = round(mean(ANALF),1), 
+            "Pob. 15 sin educación básica" =round(mean(SBASC),1),
+            "Pob. en viv. sin drenaje"=round(mean(OVSDE),1),
+            "Pob. en viv. sin energia"= round(mean(OVSEE),1),
+            "Pob. en viv. sin agua entubada"=round(mean(OVSAE),1),
+            "Pob. en viv. con piso tierra" = round(mean(OVPT),1),
+            "Pob. en viv. con hacinamiento" = round(mean(VHAC),1),
+            "Pob. en menos 5mil hab."= round(mean(PL.5000),1),
+            "Pob. con ingresos 3 sal. min." = round(mean(PO2SM),1),
+            "Indice1" = round(mean(Indice1),1),
+            "Indice2"= round(mean(Indice2),1),
+            "Indice"= round(mean(Indice),1))
+
+#Tabla agregada
+Tabla <-bind_rows(Tabla2, Tabla1)
+t(Tabla)
+```
+
+Descripción
+
+|Clave  | Descripción |
+|-------|-------------|
+|ANALF  |	% población analfabeta de 15 años o más|
+|SBASC  |	% población de 15 años o mas sin educación básica|
+|OVSDE  |	% ocupantes en viviendas particulares habitadas sin drenaje ni excusado|
+|OVSEE  |	% ocupantes en viviendas particulares habitadas sin energía eléctrica|
+|OVSAE  |	% ocupantes en viviendas particulares habitadas sin agua entubada en el ámbito de la vivienda|
+|OVPT   |	% ocupantes en viviendas particulares habitadas con piso de tierra|
+|VHAC   |	% viviendas particulares habitadas con hacinamiento|
+|PL.5000|	% población que vive en localidades menores a 5 000 habitantes|
+|PO2SM  |	% población ocupada con ingresos de hasta 2 salarios mínimos|
+
+
+
+|Cluster |Descripción |
+| ---------- | ---------- |
+|1 |Municipios con marginación promedio en índice 1 y baja en 2|
+|2 |Municipios con marginación alta en índice 1 y baja en 2|
+|3 |Municipios con marginación alta en índice 1 y baja  2|
+|4 |Municipios con marginación promedio en índice 1 y 2|
+|5 |Municipios con margiación alta en índice 1 y baja en 2|
+
+Guardar a excel el data frame con los clusters:
+
+```{r}
+library(writexl)
+write_xlsx(Datos,"C://Users//L00786475//OneDrive - Instituto Tecnologico y de Estudios Superiores de Monterrey//Desktop//ProyectoR//Datos.xlsx")
+```
+
+
+
+

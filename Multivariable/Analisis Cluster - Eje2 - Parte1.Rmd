@@ -1,0 +1,193 @@
+---
+title: "Analisis_Cluster_PINAD19"
+date: "19/9/2021"
+output: word_document
+---
+Para este ejemplo se utilizarán los indicadores sociodemográficos del Censo de Población y Vivienda 2020 para aplicar la técnica de análisis cluster con los componentes estimados en el análisis de factores.
+
+Los dos omponentes estimados en escala 0 a 100 se utilizarán para estimar los clusters y las indicadores para describirlos.
+
+Fuente CONAPO
+URL: https://www.gob.mx/conapo/documentos/indices-de-marginacion-2020-284372
+
+Indicadores
+
+|Clave  | Descripción |
+|-------|-------------|
+|ANALF  |	% población analfabeta de 15 años o más|
+|SBASC  |	% población de 15 años o mas sin educación básica|
+|OVSDE  |	% ocupantes en viviendas particulares habitadas sin drenaje ni excusado|
+|OVSEE  |	% ocupantes en viviendas particulares habitadas sin energía eléctrica|
+|OVSAE  |	% ocupantes en viviendas particulares habitadas sin agua entubada en el ámbito de la vivienda|
+|OVPT   |	% ocupantes en viviendas particulares habitadas con piso de tierra|
+|VHAC   |	% viviendas particulares habitadas con hacinamiento|
+|PL.5000|	% población que vive en localidades menores a 5 000 habitantes|
+|PO2SM  |	% población ocupada con ingresos de hasta 2 salarios mínimos|
+
+# Base de datos
+
+Código para cargar base de datos
+
+```{r }
+
+#Abrir excel
+library(readxl)
+Datos <- read_excel("DatosMl.xlsx", sheet="2.1")
+```
+
+Código para crear base de datos para realizar los clusters con las variables PNA, Ingles y FTE:
+
+```{r}
+D1<-Datos[,c("Indice1","Indice2" )]
+```
+
+# Procesamiento de datos
+Se puden usar variables numéricas en escala de razón o de intervalo, asimimsmo variables categóricas en escala nominal u ordinal expresadas como variables binarias (dummies).
+
+## Datos faltantes
+
+Para validar si existen datos faltantes en la base se utiliza el siguiente código:
+
+```{r}
+colSums(is.na(D1))
+```
+En este ejemplo no hay datos faltantes, en caso de tenerlos se tiene la opción de eliminarlos de la base o reemplazarlos por la media.
+
+Datos <- na.omit(Datos) # código para borrarlos
+Datos <- na.aggregate(data) #Código para reemplazarlos con la media de cada columna
+
+De la última función se requiere del paquete "zoo".
+
+## Estandarización de variables
+Para que la escala de las variables no sesgue los resultados, se deben de expresar todas las variables en una misma escala. Esto se hace estandarizando las variables. El código es:
+
+```{r}
+D1z <- scale(D1)
+```
+
+# Análisis cluster jerárquico
+
+## Medida de distancia
+Lo primero que se tiene que hacer es elegir una medida de distancia o de similitud, una de las más utilizadas es la medida de distancia Euclidiana.
+
+Con la medida de distancia se calcula para cada par de datos (en total 499,500 pares) la distancia que hay entre ellos, y se expresa en una matriz de distancias.
+
+```{r}
+d <- dist(D1z, method = "euclidean")
+```
+
+## Método de agrupación jerarquico
+
+Una vez elegida la medida de distancia, ahora se tiene que elegir el criterio para reunir los individuos en en grupo (cluster). El objetivo es que los individuos agrupados en un grupo sean lo más parecido posible y lo más diferente posible a los agrupados en otro grupo.
+
+Los métodos jerárquicos aglomerativos inician suponiendo que cada uno de los elementos que se pretende agrupar constituye un grupo, es decir, se tienen tantos grupos como observaciones disponibles. Basándose en una medida de similitud/disimilitud para saber qué tan parecidos o diferentes son las observaciones, éstas se fusionan hasta unir todos los elementos en un solo grupo. 
+
+El método de agrupamiento jérarquico más utilizado es el de ward. El método de Ward también llamado método de la distancia mínima, busca a los dos grupos cuya unión lleve al menor incremento en la varianza. Esto significa que en cada caso se debe de probar con todas las combinaciones posibles de grupos, calcular la suma de cuadrados y seleccionar aquel con valor menor. 
+
+Para realizar las estimaciones en r, se utilizará el paquete "hcut".
+
+```{r}
+library(factoextra)
+HC <- hcut(d, hc_method = "ward.D")
+HC
+```
+## Dendograma
+El dendograma es un gráfico en forma de árbol que permite visualizar las agrupaciones de los individuos basadas en una medida de similitud/disimilitud y un criterio de agrupamiento.
+
+En el eje de las Y viene la distancia (entre más distancia más diferencia entre los grupos) entre las agrupaciones y en el eje x las observaciones. Si se traza de manera horizontal una linea se puede determinar el número total de cluster contando las lineas que cruza. 
+
+Para vizualizar el dendograma en r se utilizará la función "fviz_dend". 
+```{r}
+fviz_dend(HC)
+```       
+En este ejemplo se ven cinco agrupaciones (la función  sugiere dos marcados en color, los más grandes).
+
+Para vizualizar los cinco se debe de especificar nuevamente el código.
+
+Primero se estiman los cinco clusters
+
+```{r}
+HC <- hcut(d, k=5, hc_method = "ward.D")
+```
+
+Ahora se pide el dendograma
+
+```{r}
+fviz_dend(HC, show_labels = FALSE, rect = TRUE)
+```
+
+## Visualización de los cluster estimados
+
+Primero tenemos que guardar en la base de datos los cluster. La siguiente función creará en la base de datos una columna con la identificación de cada observación a qué cluster pertenece.
+
+```{r}
+Datos$ClusterHC<-HC$cluster
+```
+
+Ahora se hace una tabla con las variables utilizadas para hacer el cluster y para describirlos.
+
+#Directo a las tablas
+```{r}
+library("dplyr")
+#Tabla con datos de las n=2469 observaciones
+Tabla1<-Datos %>%
+  summarize("n"=n(), 
+            "Pob. Analfabeta" = round(mean(ANALF),1), 
+            "Pob. 15 sin educación básica" =round(mean(SBASC),1),
+            "Pob. en viv. sin drenaje"=round(mean(OVSDE),1),
+            "Pob. en viv. sin energia"= round(mean(OVSEE),1),
+            "Pob. en viv. sin agua entubada"=round(mean(OVSAE),1),
+            "Pob. en viv. con piso tierra" = round(mean(OVPT),1),
+            "Pob. en viv. con hacinamiento" = round(mean(VHAC),1),
+            "Pob. en menos 5mil hab."= round(mean(PL.5000),1),
+            "Pob. con ingresos 3 sal. min." = round(mean(PO2SM),1),
+            "Indice1" = round(mean(Indice1),1),
+            "Indice2"= round(mean(Indice2),1),
+            "Indice"= round(mean(Indice),1))
+
+#Tabla por cada cluster
+Tabla2<-Datos %>%
+  group_by(ClusterHC) %>% 
+  summarize("n"=n(), 
+            "Pob. Analfabeta" = round(mean(ANALF),1), 
+            "Pob. 15 sin educación básica" =round(mean(SBASC),1),
+            "Pob. en viv. sin drenaje"=round(mean(OVSDE),1),
+            "Pob. en viv. sin energia"= round(mean(OVSEE),1),
+            "Pob. en viv. sin agua entubada"=round(mean(OVSAE),1),
+            "Pob. en viv. con piso tierra" = round(mean(OVPT),1),
+            "Pob. en viv. con hacinamiento" = round(mean(VHAC),1),
+            "Pob. en menos 5mil hab."= round(mean(PL.5000),1),
+            "Pob. con ingresos 3 sal. min." = round(mean(PO2SM),1),
+            "Indice1" = round(mean(Indice1),1),
+            "Indice2"= round(mean(Indice2),1),
+            "Indice"= round(mean(Indice),1))
+
+#Tabla agregada
+Tabla <-bind_rows(Tabla2, Tabla1)
+t(Tabla)
+```
+
+Descripción
+
+|Clave  | Descripción |
+|-------|-------------|
+|ANALF  |	% población analfabeta de 15 años o más|
+|SBASC  |	% población de 15 años o mas sin educación básica|
+|OVSDE  |	% ocupantes en viviendas particulares habitadas sin drenaje ni excusado|
+|OVSEE  |	% ocupantes en viviendas particulares habitadas sin energía eléctrica|
+|OVSAE  |	% ocupantes en viviendas particulares habitadas sin agua entubada en el ámbito de la vivienda|
+|OVPT   |	% ocupantes en viviendas particulares habitadas con piso de tierra|
+|VHAC   |	% viviendas particulares habitadas con hacinamiento|
+|PL.5000|	% población que vive en localidades menores a 5 000 habitantes|
+|PO2SM  |	% población ocupada con ingresos de hasta 2 salarios mínimos|
+
+Guardar a excel el data frame con los clusters:
+
+```{r}
+library(writexl)
+write_xlsx(Datos,"Datosmlc.xlsx")
+```
+
+
+
+

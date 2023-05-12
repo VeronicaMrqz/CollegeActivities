@@ -1,0 +1,794 @@
+---
+title: "Analisis Factores"
+author: "Verónica Márquez"
+date: "2/11/2021"
+output: word_document
+---
+
+Para este ejemplo se utilizarán los indicadores sociodemográficos del Censo de Población y Vivienda 2020 para aplicar la técnica de análisis de factores y estimar un índice con el método de componentes principales para compararlo con el índice de marginación que publica la CONAPO.
+
+Fuente CONAPO
+URL: https://www.gob.mx/conapo/documentos/indices-de-marginacion-2020-284372
+
+Indicadores
+
+|Clave  | Descripción |
+|-------|-------------|
+|ANALF  |	% población analfabeta de 15 años o más|
+|SBASC  |	% población de 15 años o mas sin educación básica|
+|OVSDE  |	% ocupantes en viviendas particulares habitadas sin drenaje ni excusado|
+|OVSEE  |	% ocupantes en viviendas particulares habitadas sin energía eléctrica|
+|OVSAE  |	% ocupantes en viviendas particulares habitadas sin agua entubada en el ámbito de la vivienda|
+|OVPT   |	% ocupantes en viviendas particulares habitadas con piso de tierra|
+|VHAC   |	% viviendas particulares habitadas con hacinamiento|
+|PL.5000|	% población que vive en localidades menores a 5 000 habitantes|
+|PO2SM  |	% población ocupada con ingresos de hasta 2 salarios mínimos|
+
+
+# Abrir excel
+En la hoja 2.1 del excel "DAtosM.xlsx" se encuentra la información a nivel municipio de los indicadores 2020. En la hoja 2.2 se encuentra el diccionario de datos.
+
+```{r}
+library(readxl)
+Datos<-read_excel("DatosM.xlsx", sheet="2.1")
+```
+
+# Seleccionar los indicadores a utilizar
+
+```{r}
+library(dplyr)
+D1 <- Datos %>%
+  select("ANALF","SBASC","OVSDE","OVSEE","OVSAE","OVPT","VHAC",
+         "PL.5000","PO2SM")
+
+```
+
+# Verificación de observaciones faltantes
+
+El siguiente código presenta por variable el total de observaciones faltantes.
+
+```{r}
+
+colSums(is.na(D1))
+```
+No hay observaciones faltantes. Si hubiera hay dos opciones:
+
+Borrar los registros:
+Datos <- na.omit(D1) 
+
+Remplazarlos con la media:
+Datos <- na.aggregate(D1)
+
+# Analisis base de datos
+
+Es importante asegurarse de analizar los datos, con la función describe() del paquete psych() se puede de cada variable:
+
+1) Analizar la centralidad y dispersión de los datos
+2) Identificar observaciones atípicas con el valor mínimo y máximo
+3) Conocer si la distribución de las variables se asemeja a la normal (coeficiente de asimetria de 0 y curtosis de 3)
+
+```{r}
+library(psych)
+describe(D1)
+
+```
+
+Algunos resultados de lo observado:
+1) Existen 2469 municipios en la base de datos, 
+2) Analizando "ANALF" en promedio el 10.16% de la población de 15 ó más es analfabeta, con una desivación estándar de 7.63 puntos porcentuales (así se pueden describir las otras variables)
+3) De acuerdo al mínimo y al máximo no hay observaciones atípicas.
+4) De acuerdo al coeficiente de asimetria (skew) y a la curtosis (kurtosis) todas las variables tienen distribuciones que se alejan de la normalidad.
+
+- Se observa mayor problema en los ingresos, personas que viven en localidades con menos de 5000 habitantes, luego educación y al último las condiciones de vivienda.
+- No se ven problemas de datos atípicos, y no hay normalidad, pero no vamos a hacer inferencias con los factores estimados.
+
+#Graficos de dispersion e histogramas
+
+El análisis gráfico permite con los histogramas conocer visualmente las distribuciones de las variables y las relaciones entre las variables (si hay linealidad o curvas) y si se ven observaciones extremas.
+
+```{r}
+library(car)
+scatterplotMatrix(D1,smooth=FALSE)
+```
+
+Resultados observados:
+1) En la diagonal se puede validar con los histogramas que las distribuciones no son normales. Este supuesto importa cuando queremos hacer pruebas de hipótesis sobre los resultados del análisis pero este no es el caso, además podemos asumir por el Teorema de Limite Central que por tener muestras grandes (n>=30) se cumple el supuesto de normalidad.
+2) No hay relaciones curvas, si las hubiera podriamos aplicar logaritmos a las variables para hacerlas lineales, ya que las correlaciones se basan en relaciones lineales.
+3) En algunas variables se observan observaciones extremas (OVSDE y OVSEE), vermos más adelante si afectan la signficania estadística de las correlaciones de las variables.
+
+En caso de que se desee validar normalidad multivariada y observaciones extremas multivariadas se puede usar el paquete "MVN" (https://cran.r-project.org/web/packages/MVN/MVN.pdf). 
+
+- No veo curvas, veo observacions atípicas en la variable OVSDE y OVSEE, pero veamos la evaluación del análisis para ver si nos preocupamos. 
+
+#Matriz de correlación
+
+La base principal del análisis es que exista correlación entre las variables y con ella estimar los componentes. La librería "psych" con la función "corplot" permite tener una buena vizualización de la matriz de correlaciones de las variables con su significancia.
+
+```{r}
+library(psych)
+corPlot(D1,cex = .6,stars = TRUE, show.legend=FALSE)
+```
+H0: correlación = 0
+H1: correlación =! 0
+
+Todas son diferentes de cero, pero hay algunas variables que tienen correlacion débil, pero diferente de cero.
+
+Todas las variables tienen correlaciones significativas (diferentes de cero), la más alta 0.7 y la más baja 0.19. Sin embargo, necesitamos validar si realmente las correlaciones existentes entre las variables permiten realizar el análisis.
+
+Para determinar si es factible aplicar un análisis de componentes principales a un conjunto de datos existen tres medidas:
+
+1) El determinante de la matriz de correlaciones
+2) La prueba de contraste de esfericidad de Bartlett
+3) El análisis de suficiencia general o Kaiser-Meyer-Olkin
+
+
+# Determinante de la matriz de correlaciones
+
+El determinante de una matriz de correlación oscila entre 0 y 1:
+
+0 ≤ |R| ≤ 1
+
+Donde:
+
+R = Matriz de correlación
+|R| = Es el determinante de la matriz de correlación
+
+Si el determinante es cercano a cero significa que las variables están altamente correlacionados y sí se puede realizar el análisis de factores. El problema de este enfoque es que no hay un límite para determinar si es o no cercano a cero.
+
+```{r}
+#Estimar la matriz de correlaciones
+R<-cor(D1)
+#Calcular el determinante de la matriz
+det(R)
+```
+El determinante es cercano a cero, es posible aplicar la técnica pues si hay correlación entre las variables
+
+
+# Prueba de contraste de esfericidad de Bartlett
+
+La técnica de análisis de factores requiere que las variables estén altamente correlacionadas, en el caso contrario la matriz de correlaciones sería una matriz identidad y no tendría sentido aplicar el análisis. La prueba de Bartlett plantea las siguientes hipótesis:
+
+H0: R = I (no se debe de utilizar la técnica de análisis de factores)
+Ha: R diferente I (sí se puede aplicar)
+
+Donde:
+
+R = Matriz de correlación
+I = Es la matriz identidad
+
+```{r}
+library(psych)
+R<-cor(D1)
+cortest.bartlett(R,n=2469)
+```
+
+Como alfa = 0.05 es mayor al valor P de 0, se rechaza Ho a favor de Ha, la matriz de correlaciones es diferente a la matriz identididad y sí se puede aplicar la técnica de análisis de factores
+
+#El análisis de suficiencia general o índice Kaiser-Meyer-Olkin
+
+Una vez que ser rechazó la hipótesis nula de la prueba de Bartlett, se realiza el análisis de suficiencia para determinar qué tan fuerte y adecuada será la posible solución que se encuentre con el análisis de factores.  La medida de suficiencia (MSA) que reporta el análisis se hace tanto de manera global como para cada variable, entre más grande sea su valor más fuerte será la solución.
+
+
+Como referencia, Kaiser puso los siguientes valores en los resultados:
+  
+|Criterio        |Evaluación |
+|----------------|-----------|
+|MSA ≥ 0.9       |Excelente  |
+|0.8 ≤ MSA < 0.9 |Bueno      |
+|0.7 ≤ MSA < 0.8 |Aceptable  |
+|0.6 ≤ MSA < 0.7 |Regular    |
+|0.5 ≤ MSA < 0.6 |Bajo       |
+|MSA < 0.5       |Inaceptable|
+
+
+```{r}
+library(psych)
+R<-cor(D1)
+KMO(R)
+```
+
+El índice global, MSA, es de 0.82 el cual tiene un nivel aceptable.
+
+Una vez realizado el análisis global y obtenido un MSA ≥ 0.5, se realiza el análisis individual para cada variable.
+
+Paso 1. Se identifica a la o las  variables con un MSAi < 0.5, y se elimina del análisis a solo una, la que tenga el valor más pequeño
+
+Paso 2. Se vuelve a realizar las estimaciones para identificar si aún existen variables con MSAi < 0.5, si las hay, entonces se elimina del análisis a la que tenga el valor más pequeño.
+
+Se termina el procedimiento cuando todas las variables que quedan en el análisis tienen un MSAi ≥ 0.5
+
+#Estandarización de las variables
+
+Antes de estimar la técnia es necesario estandarizar las variables para que la escala no afecte los resultados.
+
+```{r}
+Dz <- data.frame(scale(D1))
+```
+
+# PARTE 2
+
+# Introducción modelo componentes principales
+
+Tipos de análisis de factores
+
+Análisis factorial exploratorio
+El análisis exploratorio se caracteriza porque no se conoce el número de factores, es empírico y el número de factores se determina durante la aplicación, estudia dentro del conjunto de datos la estructura latente que hace que las variables se correlacionen. Es el más utilizado.
+
+Análisis factorial confirmatorio
+En el análisis confirmatorio los factores están fijados con anterioridad y se utilizan para su corroboración.
+
+En ese caso usaremos el análisis de factores exploratorio.
+
+Existen dos modelos para estimar los factores: el de componentes principales y el modelo de factor común. 
+
+Para comprender los modelos se conceptualiza la variación de cada variable de la siguiente forma (hay que recordar que cuando la variable se encuentra estandarizada su varianza es igual a 1):
+
+Variación total = Variación común + Variación específica + Variación aleatoria
+
+Donde:
+
+Variación total 
+Mide la variación o dispersión de la variable. Cuando las variables están estandarizadas su valor es de 1.
+
+Variación común 
+Representa la variación que hace parecidas a las variables, es lo que las une.
+
+Variación específica
+Es la que hace diferentes y únicas a las variables, por lo cual dicha variación separa a las variables.
+
+Variación aleatoria
+Representa al error o al azar, como no se puede cuantificar se le considera como mínimo a su efecto.
+
+Modelo de componentes principales
+Este modelo asume que la variación específica es tan pequeña que la considera como cero e ignora la variación aleatoria.
+
+Variación total = Variación común 
+
+Esto significa que el máximo valor que puede tomar la variación común es de uno. Así toda la información contenida en las variables que se analizan, nada es específico, todo es variación común.
+
+Modelo de factor común
+En este modelo se asume que la variación específica es importante, por lo tanto se debe de calcular y eliminar del modelo de variación para que con el resto se intente agrupar las variables.
+
+Variación total - Variación específica = Variación común
+
+Esto significa que el máximo valor que puede tomar la variación común es menor a uno, pero si la variación específica es cero, entonces toma el valor de 1. Así toda la información contenida en las variables que se analizan, nada es específico, todo es variación común.
+
+En el curso se utilizará el método de componentes principales.
+
+Una vez que se ha elegido el modelo, se le aplica un procedimiento a la matriz de correlación conocido como descomposición espectral o singular:
+
+| R – lambda*I | = 0
+
+Al solucionar dicho sistema, se tendrá una solución por variable conocida como autovalor (eigenvalor)
+
+Para cada autovalor se extrae un autovector (eigenvector) el cual debe de satisfacer la condición:
+
+( R – lamda*I )v = 0
+
+
+#Estimación del modelo
+
+La estimación se hace primero con el total factores igual al total de variables, 9, sin rotación de componentes para poder explorar cuántos son necesarios.
+
+```{r}
+modelo1<-principal(Dz,nfactors = 9,rotate=FALSE)
+modelo1
+
+```
+
+# Eigenvalores y eigenvectores
+
+En este ejemplo, se tienen nueve variables entonces hay nueve soluciones (nueve autovalores/eigenvalores). Asimismo, para cada autovalor hay un eigenvector, en total 9. Sin embargo, como el objetivo de la técnica es reducir variables, esta solución no es la deseada (si se entran 9 variables en la solución deben de salir menos variables). 
+
+## Eigen valores por componente
+                       PC1  PC2  PC3  PC4  PC5  PC6  PC7  PC8  PC9
+SS loadings           4.43 1.29 0.84 0.74 0.57 0.40 0.33 0.25 0.17
+
+## Eigen vectores de cada eigen valor
+
+         PC1   PC2   PC3   PC4   PC5   PC6   PC7   PC8   PC9 h2      u2 com
+ANALF   0.86 -0.12 -0.09 -0.16  0.00 -0.35  0.05  0.10 -0.27  1 0.0e+00 1.7
+SBASC   0.83 -0.33  0.10  0.02 -0.05 -0.32 -0.10  0.00  0.28  1 2.6e-15 2.0
+OVSDE   0.50  0.58  0.46 -0.15  0.38 -0.05  0.11 -0.16  0.02  1 2.8e-15 4.2
+OVSEE   0.56  0.64  0.21  0.14 -0.35  0.06 -0.26  0.16 -0.02  1 1.2e-15 3.5
+OVSAE   0.50  0.31 -0.53  0.54  0.28 -0.04  0.02  0.00  0.02  1 2.2e-15 4.1
+OVPT    0.78  0.13 -0.25 -0.12 -0.40  0.11  0.22 -0.26  0.02  1 1.0e-15 2.4
+VHAC    0.76  0.02 -0.23 -0.43  0.17  0.26  0.06  0.26  0.09  1 6.7e-16 2.6
+PL.5000 0.62 -0.38  0.42  0.43 -0.04  0.18  0.26  0.12 -0.03  1 2.2e-16 4.2
+PO2SM   0.77 -0.40  0.03  0.01  0.16  0.24 -0.34 -0.19 -0.10  1 1.2e-15 2.5
+
+
+# Matriz de componentes no rotada
+
+La matriz de componentes no rotada muestra los eigenvectores de cada eigenvalor. Cada elemento es llamado carga del componente y es interpretada como el grado de relación entre cada variable y el componente correspondiente. En esta matriz casi todas las cargas resultan altas y por ello no es posible agrupar variables, solo sirve para determinar de manera tentativa en cuántos componentes se agruparan las variables, no permite interpretar lo que representa cada componente.
+
+Es importante mencionar que el primer componente es el que alcanza a tener la mayor información captada por las variables, y que cada componente que se agrega a la solución recaba una cantidad menor información.
+
+         PC1   PC2   PC3   PC4   PC5   PC6   PC7   PC8   PC9 h2      u2 com
+ANALF   0.86 -0.12 -0.09 -0.16  0.00 -0.35  0.05  0.10 -0.27  1 0.0e+00 1.7
+SBASC   0.83 -0.33  0.10  0.02 -0.05 -0.32 -0.10  0.00  0.28  1 2.6e-15 2.0
+OVSDE   0.50  0.58  0.46 -0.15  0.38 -0.05  0.11 -0.16  0.02  1 2.8e-15 4.2
+OVSEE   0.56  0.64  0.21  0.14 -0.35  0.06 -0.26  0.16 -0.02  1 1.2e-15 3.5
+OVSAE   0.50  0.31 -0.53  0.54  0.28 -0.04  0.02  0.00  0.02  1 2.2e-15 4.1
+OVPT    0.78  0.13 -0.25 -0.12 -0.40  0.11  0.22 -0.26  0.02  1 1.0e-15 2.4
+VHAC    0.76  0.02 -0.23 -0.43  0.17  0.26  0.06  0.26  0.09  1 6.7e-16 2.6
+PL.5000 0.62 -0.38  0.42  0.43 -0.04  0.18  0.26  0.12 -0.03  1 2.2e-16 4.2
+PO2SM   0.77 -0.40  0.03  0.01  0.16  0.24 -0.34 -0.19 -0.10  1 1.2e-15 2.5
+
+La correlación entre el componente 1 y la primera variable es de 0.86 (la carga en el componente)
+
+La suma de las correlaciones al cuadrado del vector es igual a su autovalor/eigenvalor (4.43).
+
+4.43 = (0.86)²+(0.83)²+(-0.50)²+(0.56)²+(0.50)²+(0.78)²+(0.76)²+(0.62)²+(0.77)²
+
+# Porcentaje de la variación explicada
+Es la relación de la variación explicada por el componente con respecto a la variación total manejada por el conjunto de variables. Como las variables están estandarizadas, la variación de cada una de ellas es igual a 1, entonces la variación total  es igual al conteo de las variables.
+
+La fórmula para calcular la variación explicada para cada componente es:
+
+                       PC1  PC2  PC3  PC4  PC5  PC6  PC7  PC8  PC9
+SS loadings           4.43 1.29 0.84 0.74 0.57 0.40 0.33 0.25 0.17
+Proportion Var        0.49 0.14 0.09 0.08 0.06 0.04 0.04 0.03 0.02
+
+La del componente 1 es:
+
+49% = (4.43/9)*100
+
+La del componente 2 es:
+14% = (1.29/9)*100
+
+# Comunalidades, h2
+
+Como ya se ha comentado, la variación de una variable estandarizada es de 1, entonces lo máximo que se puede explicar de una variable con los componentes estimados es de 1, o sea el valor máximo de una comunalidad  es de 1.
+
+La comunalidad de cada variable se calcula con la suma de cuadrados de las cargas:
+
+1 = (0.86)²+(-0.12)²+(-0.09)²+(-0.16)²+(0.00)²+(-0.35)²+(0.05)²+(0.10)²+(-0.27)²
+
+         PC1   PC2   PC3   PC4   PC5   PC6   PC7   PC8   PC9 h2      u2 com
+ANALF   0.86 -0.12 -0.09 -0.16  0.00 -0.35  0.05  0.10 -0.27  1 0.0e+00 1.7
+SBASC   0.83 -0.33  0.10  0.02 -0.05 -0.32 -0.10  0.00  0.28  1 2.6e-15 2.0
+OVSDE   0.50  0.58  0.46 -0.15  0.38 -0.05  0.11 -0.16  0.02  1 2.8e-15 4.2
+OVSEE   0.56  0.64  0.21  0.14 -0.35  0.06 -0.26  0.16 -0.02  1 1.2e-15 3.5
+OVSAE   0.50  0.31 -0.53  0.54  0.28 -0.04  0.02  0.00  0.02  1 2.2e-15 4.1
+OVPT    0.78  0.13 -0.25 -0.12 -0.40  0.11  0.22 -0.26  0.02  1 1.0e-15 2.4
+VHAC    0.76  0.02 -0.23 -0.43  0.17  0.26  0.06  0.26  0.09  1 6.7e-16 2.6
+PL.5000 0.62 -0.38  0.42  0.43 -0.04  0.18  0.26  0.12 -0.03  1 2.2e-16 4.2
+PO2SM   0.77 -0.40  0.03  0.01  0.16  0.24 -0.34 -0.19 -0.10  1 1.2e-15 2.5
+
+Todas suman 1 porque el total de componentes es igual al total de variables. Cuando sean menos no sumará 1, dependerá de qué tanto explican los componentes a las variables
+
+# Unicidad, u2
+
+La medida de unicidad representa la varianza que es unica de cada variable y que no se comparte con otras variables. Se calcula como uno menos la comunalidad de la variable (la varianza que es compartida con otras variables). Una unicidad de 0.2 sugiere que el 20% de la varianza de la variable no es compartida con otras variables. Entre más grande sea la unicidad menos relevancia tiene la variable en el modelo.
+
+         PC1   PC2   PC3   PC4   PC5   PC6   PC7   PC8   PC9 h2      u2 com
+ANALF   0.86 -0.12 -0.09 -0.16  0.00 -0.35  0.05  0.10 -0.27  1 0.0e+00 1.7
+SBASC   0.83 -0.33  0.10  0.02 -0.05 -0.32 -0.10  0.00  0.28  1 2.6e-15 2.0
+OVSDE   0.50  0.58  0.46 -0.15  0.38 -0.05  0.11 -0.16  0.02  1 2.8e-15 4.2
+OVSEE   0.56  0.64  0.21  0.14 -0.35  0.06 -0.26  0.16 -0.02  1 1.2e-15 3.5
+OVSAE   0.50  0.31 -0.53  0.54  0.28 -0.04  0.02  0.00  0.02  1 2.2e-15 4.1
+OVPT    0.78  0.13 -0.25 -0.12 -0.40  0.11  0.22 -0.26  0.02  1 1.0e-15 2.4
+VHAC    0.76  0.02 -0.23 -0.43  0.17  0.26  0.06  0.26  0.09  1 6.7e-16 2.6
+PL.5000 0.62 -0.38  0.42  0.43 -0.04  0.18  0.26  0.12 -0.03  1 2.2e-16 4.2
+PO2SM   0.77 -0.40  0.03  0.01  0.16  0.24 -0.34 -0.19 -0.10  1 1.2e-15 2.5
+
+Todas son cercanas a cero porque el total de componentes es igual al total de variables. Cuando sean menos no serán cercanas a cero, dependerá de qué tanto explican los componentes a las variables
+
+# Índice de complejidad, com
+
+La medida de complejidad representa el número de components necesarios para explicar las variables observadas. Una solución perfecta tiene una complejidad de 1 en cada variable, esto significa que solo se require de un componente para representar las variables.
+
+         PC1   PC2   PC3   PC4   PC5   PC6   PC7   PC8   PC9 h2      u2 com
+ANALF   0.86 -0.12 -0.09 -0.16  0.00 -0.35  0.05  0.10 -0.27  1 0.0e+00 1.7
+SBASC   0.83 -0.33  0.10  0.02 -0.05 -0.32 -0.10  0.00  0.28  1 2.6e-15 2.0
+OVSDE   0.50  0.58  0.46 -0.15  0.38 -0.05  0.11 -0.16  0.02  1 2.8e-15 4.2
+OVSEE   0.56  0.64  0.21  0.14 -0.35  0.06 -0.26  0.16 -0.02  1 1.2e-15 3.5
+OVSAE   0.50  0.31 -0.53  0.54  0.28 -0.04  0.02  0.00  0.02  1 2.2e-15 4.1
+OVPT    0.78  0.13 -0.25 -0.12 -0.40  0.11  0.22 -0.26  0.02  1 1.0e-15 2.4
+VHAC    0.76  0.02 -0.23 -0.43  0.17  0.26  0.06  0.26  0.09  1 6.7e-16 2.6
+PL.5000 0.62 -0.38  0.42  0.43 -0.04  0.18  0.26  0.12 -0.03  1 2.2e-16 4.2
+PO2SM   0.77 -0.40  0.03  0.01  0.16  0.24 -0.34 -0.19 -0.10  1 1.2e-15 2.5
+
+El valor de "com" sugiere que se requieren dos o cuatro componentes.
+
+El índice se calcula {(∑ia2i)2}/{∑ia4i}
+
+Ejemplo de la variable V1 que es igual a 2 se calcula así:
+
+[(0.86)²+(-0.12)²+(-0.09)²+(-0.16)²+(0.00)²+(-0.35)²+(0.05)²+(0.10)²+(-0.27)²] ² / 
+[(0.86)⁴+(-0.12)⁴+(-0.09)⁴+(-0.16)⁴+(0.00)⁴+(-0.35)⁴+(0.05)⁴+(0.10)⁴+(-0.7)⁴]
+
+# PARTE 3
+
+# Criterios para determinar el número de factores
+
+Los siguientes criterios permiten determinar el número de factores como posible solución inicial:
+
+- 1. Criterio a priori
+- 2. Criterio del índice de complejidad-
+Fijarse en el mean item complexity, e cual sugiere cuántos componenetes
+
+
+- 3. Criterio de la raíz latente (eigen valores o SS loadings)
+Todos los que tengan arriba de 1 en ss loadings
+
+- 4. Criterio del porcentaje de la variación explicada acumulada
+  Cumulative VaR
+Busca explicar al menos 60% entre las dos, pero que no pase del 95%. 
+
+- 5. Criterio del gráfico de sedimentación
+Graficar los eigen valores (y) valores (x) y donde cambian los valores por la pendiente, ahí indicará el número de componentes requeridos
+
+## Índice de complejidad
+La medida de complejidad representa el número de components necesarios para explicar las variables observadas.
+
+                       PC1  PC2  PC3  PC4  PC5  PC6  PC7  PC8  PC9
+SS loadings           4.43 1.29 0.84 0.74 0.57 0.40 0.33 0.25 0.17
+Proportion Var        0.49 0.14 0.09 0.08 0.06 0.04 0.04 0.03 0.02
+Cumulative Var        0.49 0.63 0.73 0.81 0.87 0.92 0.95 0.98 1.00
+Proportion Explained  0.49 0.14 0.09 0.08 0.06 0.04 0.04 0.03 0.02
+Cumulative Proportion 0.49 0.63 0.73 0.81 0.87 0.92 0.95 0.98 1.00
+
+Mean item complexity =  3
+
+Sugiere que se requieren tres componentes
+
+## Criterio de la raíz latente (eigen valores o SS loadings)
+Se recomienda este criterio para análisis de factores exploratorio. Este criterio es el más utilizado por los paquetes estadísticos. Un componente con un autovalor/eigenvalor menor a 1 se considera que no capta información significativa de las variables. Con este criterio se incluye en la solución solamente a los componentes con un autovalor/eigenvalor mayor o igual a 1.
+
+                       PC1  PC2  PC3  PC4  PC5  PC6  PC7  PC8  PC9
+SS loadings           4.43 1.29 0.84 0.74 0.57 0.40 0.33 0.25 0.17
+
+Sugiere que se requieren dos componentes, PC1 y PC2 tiene un eigen valor mayor a 1.
+
+# Criterio del porcentaje de la variación explicada acumulada
+
+Mediante este criterio se manejan “n” componentes como solución inicial, sólo si el porcentaje de la varianza explicado acumulado es mayor al 60%
+
+                       PC1  PC2  PC3  PC4  PC5  PC6  PC7  PC8  PC9
+SS loadings           4.43 1.29 0.84 0.74 0.57 0.40 0.33 0.25 0.17
+Proportion Var        0.49 0.14 0.09 0.08 0.06 0.04 0.04 0.03 0.02
+Cumulative Var        0.49 0.63 0.73 0.81 0.87 0.92 0.95 0.98 1.00
+
+Sugiere que se requieren dos componentes, PC1 y PC2 explican el 60% de la varianza (cumulative Var = 0.63).
+
+## Criterio del gráfico de sedimentación (gráfico del codo)
+
+La idea de este gráfico está enfocada en que si un componente es importante tendrá una varianza grande (un autovalor/eigenvalor grande). Al extraer los componentes el primero explica la mayor parte de la información, después el segundo que extrae menos información que el primero, y así sucesivamente. 
+
+En este gráfico en el eje de las Y se grafican los autovalores/eigenvalores y en el eje de las X los componentes. El gráfico tiene forma de precipicio, se retendrá en al solución inicial solo los componentes que estén antes de la zona de sedimentación (antes del cambio drástico en pendiente).
+
+```{r}
+library(psych)
+R<-cor(D1)     #Matriz de correlación
+scree(R)         #Gráfico de sedimentación
+
+```
+
+Se sugieron 2 componentes.
+
+# Modelo final con 2 componentes
+
+```{r}
+library(psych)
+modelo2<-principal(Dz,nfactors = 2, rotate='none')
+modelo2
+
+```
+Los dos componentes explican un 63% de la varianza (de la información de las X´s)
+
+                       PC1  PC2
+SS loadings           4.43 1.29
+Proportion Var        0.49 0.14
+Cumulative Var        0.49 0.63
+Proportion Explained  0.77 0.23
+Cumulative Proportion 0.77 1.00
+
+La variable que mejor explican los dos componentes es SABASC, con un 80%, luego ANALF y P02SM con un 76%, y al final OVSAE con un 35%, ver columna h2
+
+        PC1   PC2   h2   u2 com
+ANALF   0.86 -0.12 0.76 0.24 1.0
+SBASC   0.83 -0.33 0.80 0.20 1.3
+OVSDE   0.50  0.58 0.58 0.42 2.0
+OVSEE   0.56  0.64 0.72 0.28 2.0
+OVSAE   0.50  0.31 0.35 0.65 1.7
+OVPT    0.78  0.13 0.63 0.37 1.1
+VHAC    0.76  0.02 0.58 0.42 1.0
+PL.5000 0.62 -0.38 0.53 0.47 1.6
+PO2SM   0.77 -0.40 0.76 0.24 1.5
+
+# PARTE 4
+
+# Interpretación de componentes
+
+# Matriz de factores rotada
+
+La matriz de factores rotada (al igual que la no rotada) proporciona información de la relación de las variables con los factores (las cargas de los factores), sin embargo ahora serán las definitivas las que permitirán agrupar los factores e interpretarlos, darán la solución final.
+
+Mediante el proceso de rotación se ajustan los ejes de coordenadas con el fin de obtener una solución más sencilla y con significado teórico. Esto es, hacer que una variable tenga una carga alta con un factor (para que se identifique con dicho factor) y cargas bajas con el resto de los factores (par que no tenga relación con ellos).
+
+Al rotar los factores las cargas cambian dada la nueva posición de los ejes, esto implica que también cambia el autovalor/eigenvalor, pero no cambia la variación explicada total ni las comunalidades (al rotar no se explica ni más ni menos información).
+
+Existen los siguientes métodos de rotación
+
+Varimax --> Más utilizada
+Es el método más utilizado, minimiza el número de variables que tienen saturaciones altas en cada factor
+
+Quartimax
+Minimiza el número de factores necesarios para explicar cada variable
+
+Equamax
+Minimiza tanto el número de variables que saturan alto en cada factor como el número de factores necesarios para explicar cada variable
+
+Promax y Oblimin
+Métodos que permiten que los factores estén correlacionados.
+
+
+# Criterios para identificar cargas significativas
+
+Una carga es significativa en función del tamaño de la muestra y del nivel de significancia utilizado, entre mayor sea la muestra más credibilidad hay en la información.
+
+Criterios con alfa igual a 0.05 (cargas en valor absoluto):
+
+
+Prioridad 1: |Carga| ≥ 0.5
+Prioridad 2: 0.4 ≤|Carga|< 0.5
+Prioridad 3: 0.3 ≤|Carga|< 0.4
+
+Los criterios para determinar cargas significativas permiten identificar la variable con el factor, una variable solo debe de correlacionarse con un factor, primero se da la oportunidad con el criterio 1, luego con el 2 y así sucesivamente hasta colocarla (siempre y cuando sea significativa, si no lo es, se quita de la estimación y se vuelven a realizar las estimaciones).
+
+```{r}
+library(psych)
+modelo2<-principal(Dz,nfactors = 2, rotate="varimax")
+modelo2
+```
+
+La interpretación se hace con las cargas de las varibles. Con esas cargas se le pone nombre a los componentes.
+
+El siguiente código sirve para filtrar las cargas con prioridad 1. (Puras arriba de 0.5)
+
+```{r}
+print(modelo2$loadings,cut=0.5, sort=TRUE) 
+```
+
+Si quedara una variable en blanco, se "baja"a la siguiente prioridad.
+
+Si una variable sale en las dos componentes, depende de la carga.
+
+-------
+El siguiente código sirve para filtrar las cargas con prioridad 2.
+
+```{r}
+print(modelo2$loadings,cut=0.4, sort=TRUE) 
+```
+
+El siguiente código sirve para filtrar las cargas con prioridad 3.
+
+```{r}
+print(modelo2$loadings,cut=0.3, sort=TRUE) 
+```
+
+# Interpretación de las cargas de la matriz rotada
+Componente 1
+Representa a las variables:
+
+|Clave  | Descripción |
+|-------|-------------|
+|ANALF  |	% población analfabeta de 15 años o más|
+|SBASC  |	% población de 15 años o mas sin educación básica|
+|OVPT   |	% ocupantes en viviendas particulares habitadas con piso de tierra|
+|VHAC   |	% viviendas particulares habitadas con hacinamiento|
+|PL.5000|	% población que vive en localidades menores a 5 000 habitantes|
+|PO2SM  |	% población ocupada con ingresos de hasta 2 salarios mínimos|
+
+¿Cómo podemos llamarlo?
+Rezago en municipios rurales
+
+Componente 2
+Representa a las variables:
+|Clave  | Descripción |
+|-------|-------------|
+|OVSDE  |	% ocupantes en viviendas particulares habitadas sin drenaje ni excusado|
+|OVSEE  |	% ocupantes en viviendas particulares habitadas sin energía eléctrica|
+|OVSAE  |	% ocupantes en viviendas particulares habitadas sin agua entubada en el ámbito de la vivienda|
+
+¿Cómo podemos llamarlo?
+Calidad de la vivienda 
+
+¿OVPT lo dejamos en el componente 1 o en el 2? --> en el 2 (desempatar por la lógica)
+
+# Alternativas gráficas para interpretar componentes
+
+La librería psych ofrece un método gráfico para interpretar los componentes
+
+```{r}
+library(psych)
+fa.diagram(modelo2)
+```
+
+Las variables ANALF,SBASC, OVPT, VHAC, PL.5000, PO2SM tienen correlación de manera positiva con el componente 1, y OVSDE, OVSEE y OVSAE con el componente 2. --> hay que ver la interpretación del código pasado
+
+Gráfico de sedimentación.
+
+También existe el gráfico de sedimentación que gráfica las cargas de las variables con los componentes.
+
+```{r}
+load <- modelo1$loadings[,1:2]      #obtiene las cargas de las variables
+plot(load,type="n")                 # Dibujar el área de visualización
+text(load,labels=names(Dz),cex=.7)  # Añadir las variables
+
+```
+
+
+Las variables ANALF,SBASC, OVPT, VHAC, PL.5000, PO2SM tienen cargas altas con el componente 1; y OVSDE, OVSEE y OVSAE con el componente 2 
+
+# PARTE 5
+
+# Obtención de puntajes
+
+Esta etapa solo es necesaria si los factores encontrados se utilizarán en otros análisis multivariados como regresión.
+
+Se llaman puntajes a los datos con los que se maneja cada factor como variable. Los puntajes se pueden obtener con los siguientes métodos:
+
+- Regresión
+- Anderson-Rubin
+- Bartlett
+
+En cualquiera de ellos los puntajes se obtienen al sustituir los datos estandarizados de las variables en la ecuación del factor. Dicha ecuación está formada por una combinación lineal de las variables estandarizadas.
+
+```{r}
+library(psych)
+modelo2<-principal(Dz,nfactors = 2, rotate="varimax",
+                   scores=TRUE,method="regression") #con el método que queramos calcular los puntajes
+
+Dz$PC1<-modelo2$scores[,1]
+Dz$PC2<-modelo2$scores[,2] #salen en la base de datos en otra columna
+```
+
+Al dar clic en el objeto Dz apareceran las nuevas variables PC1 y PC2
+
+# Matriz de coeficientes estandarizados para el cálculo de los factores
+
+La ecuación de un factor es de la forma:
+
+Fi = A1X1i +  A2X2i + A3X3i + . . . .+  AkXki
+
+Donde:
+
+Fi  
+Es la puntuación del factor en la observación i 
+
+Ak
+Es la importancia o peso que tiene la variable Xk con respecto al factor estimado, como las variables se incluyen estandarizadas en las
+
+Xk
+Es la variable original estandarizada
+
+La matriz aporta los valores de A1, A2, A3,…Ak.
+
+# Obtención de la ecuación de los componentes
+
+La ecuación se obtiene con el siguiente código:
+
+```{r}
+modelo2$weights #
+
+```
+
+Componente 1
+RC1i = 0.215*ANALF+0.300*SBASC-0.163*OVSDE-0.178*OVSEE-0.046*OVSAE+0.086*OVPT+0.131*VHAC+0.282*PL.5000+0.322*PO2SM
+
+Componente 2
+RC2i = 0.032*ANALF-0.104*SBASC+0.434*OVSDE+0.479*OVSEE+0.266*OVSAE+0.187*OVPT+0.1141*VHAC-0.161*PL.5000-0.159*PO2SM
+
+Al sustituir en las ecuaciones por observación los valores estandarizados de las variables, se pueden obtener los puntajes de los componentes.
+
+Ejemplo para la primera observación:
+
+Componente 1
+RC1i = 0.215*ANALF+0.300*SBASC-0.163*OVSDE-0.178*OVSEE-0.046*OVSAE+0.086*OVPT+0.131*VHAC+0.282*PL.5000+0.322*PO2SM
+
+RC1i = 0.215*(-1.1160779)+0.300*(-1.82281117)-0.163*(-0.57761226)
+-0.178*(-0.50109802)-0.046*(-0.62075914)+0.086*(-0.8241737)
++0.131*(-1.53277244)+0.282*(-1.768664821)+0.322*(-2.35978133)
+RC1i = -2.105755814
+
+Componente 2
+RC2i = 0.032*ANALF-0.104*SBASC+0.434*OVSDE+0.479*OVSEE+0.266*OVSAE+0.187*OVPT+0.1141*VHAC-0.161*PL.5000-0.159*PO2SM
+
+RC2i = 0.032*(-1.1160779)-0.104*(-1.82281117)+0.4343*(-0.57761226)
++0.479*(-0.50109802)+0.266*(-0.62075914)+0.187*(-0.8241737)
++0.114*(-1.53277244)-0.161*(-1.768664821)-0.159*(-2.35978133)
+RC2i = -0.17074551
+
+# Consideraciones para realizar un índice
+
+1) Las variables que forman el índice (variables que definen el componente) deben de moverse todas en un mismo sentido.
+
+2) Si hay dos componentes, para hacer el índice se puede sacar un promedio ponderado con el % de la varianza explicada o elegir el que tiene el mayor poder de explicación.
+
+# Alfa de Cronbach
+
+Una alternativa para validar si las variables permiten hacer un índice es utilizar una medida de consistencia interna (se muevan en el mismo sentido), el alfa de Cronbach.
+
+Esta medida permite validar que todas las variables se muevan en un mismo sentido (más es mejor o menos es mejor), si una se mueve en un sentido inverso puede cancelar los efectos de otras variables a la hora de hacer el índice.
+
+El alfa de Cronbach toma un rango de 0 a 1, un valor confiable es de al menos 0.6.
+
+Para el componente 1 formado por ANALF,SBASC,  VHAC, PL.5000, PO2SM
+
+```{r}
+library(psych)
+alpha(Dz[,c(1,2,7,8,9)],check.keys=TRUE) #variables a utilizar
+```
+
+El valor de alfa es de 0.87 esto significa que si se puede hacer un índice a partir de las varialbes ANALF,SBASC, OVPT, VHAC, PL.5000, PO2SM.
+
+También nos da el análisis de si podemos mejorar quitando variables con baja correlación.
+
+ Reliability if an item is dropped:
+        raw_alpha std.alpha G6(smc) average_r S/N alpha se  var.r med.r
+ANALF        0.85      0.85    0.84      0.52 5.5   0.0050 0.0171  0.56
+SBASC        0.85      0.85    0.84      0.52 5.5   0.0050 0.0181  0.58
+OVPT         0.87      0.87    0.88      0.58 6.8   0.0042 0.0200  0.59
+VHAC         0.87      0.87    0.87      0.57 6.7   0.0042 0.0164  0.59
+PL.5000      0.89      0.89    0.88      0.61 8.0   0.0036 0.0079  0.62
+PO2SM        0.86      0.86    0.86      0.54 5.9   0.0047 0.0238  0.57
+
+Si se quita la variable ANALF el alfa baja a 0.85, si se quita a PL.500 el alfa sube a 0.89, como no hay cambios sustanciales la evidencia indica quedaranos con todas las variables.
+
+Para el componente 2 formado por OVSDE, OVSEE y OVSAE + OVPT,
+
+```{r}
+library(psych)
+alpha(Dz[,c(3,4,5,6)],check.keys=TRUE)
+```
+
+Nos indica un alfa de 0.71 entonces es confiable hacer un índice con V2, V4 y V7.
+
+El análisis por variable indica que no se mejora sustancialmente el alfa si se quitan variables.
+
+
+
+# Rescalamiento de variables
+
+Las variables entre más alto sea su valor indica mayor rezago social, entonces los componentes tienen la misma interpretación y en este caos queremos que más sea mejor (menos rezago) por este motivo hay que cambiar la escala para que más sea lo mejor. (si agarramos puras variables en negativo)
+
+```{r}
+
+Dz$PC1<-with(Dz,max(PC1)-PC1)
+Dz$PC2<-with(Dz,max(PC2)-PC2)
+
+```
+
+Los componentes estimados están en la escala de la normal estándar de -2 a 2. Pueden expresarse en escala 0 a 100 con el siguiente código.
+
+#Poner el índice de 0 a 100
+
+```{r}
+Dz$Indice1<-with(Dz,100*(PC1-min(PC1))/(max(PC1)-min(PC1))) #Componente 1
+Dz$Indice2<-with(Dz,100*(PC2-min(PC2))/(max(PC2)-min(PC2))) #Componente 2
+```
+
+
+#Punto final
+
+En este ejercicio se tienen dos índices, si se quisiera tener solo uno, se podría elegir el componente que explica más la varianza total de los datos, el componente 1, o bien sacar un promedio de los dos índices ponderando por la varianza explicada asegurando que el ponderador sume 1.
+
+Indice = w1*Indice1+w1*Indice2
+
+Donde:
+
+w1 = VE_PC1/(VE_PC1+VE_PC2)
+w1 = VE_PC2/(VE_PC1+VE_PC2)
+
+VE = Varianza explicada
+
+```{r}
+#Ponderadores obtenidos del modelo estimado, renglon "Proportion Var".
+w1=0.38/(0.38+0.26)
+w2=0.26/(0.38+0.26)
+#Indice global de Marginación de la base de datos
+Dz$Indice<-with(Dz,w1*Indice1+w2*Indice2) #ponderando los dos índices, nuestro final se llama Índice
+

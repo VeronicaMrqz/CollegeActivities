@@ -1,0 +1,354 @@
+---
+title: "Analisis_Cluster_PINAD19"
+date: "19/9/2021"
+output: word_document
+---
+En este ejemplo se utiliza una muestra aleatoria de 1,000 alumnos de primer ingreso del semestre AD19 para aplicar la técnica de análisis cluster. Se busca indentificar tipos de alumnos para identificar alumnos en riesgo y personalizar seguimiento.
+
+Variables para realizar el análisis cluster
+
+|Variable |Descripción |
+| ---------- | ---------- |
+|PNA | Promedio de preparatoria |
+|Ingles | Nivel de inglés  (Más bajo 1, 7 Más alto nivel) |
+|FTE | Carga académica  (1: Carga completa) |
+  
+Variables para describir los clusters:
+
+|Variable |Descripción |
+| ---------- | ---------- |
+|PrepaTEC | Preparatoria de procedencia (Prepa Tec o Prepa NO Tec) |
+|Escuela | Escuela de inscripción (Ingeniería, Negocios, Resto) |
+|Sexo | Mujer, Hombre |
+|Edad | Edad de los alumnos en años |
+|Foraneo | Sí Local,  Sí Extranjero |
+|FGS | Primera generación en estudiar una carrera profesional (Sí / No) |
+|Retencion1erA | Retención al primer año (alumno se retuvo 1 o no 0 después de su primer año de estudios) |
+|Prom1erA | Promedio general que obtuvo el alumno en su primer año de estudios de carrera |
+
+# Base de datos
+
+Código para cargar base de datos
+
+```{r }
+
+#Abrir excel
+library(readxl)
+Datos <- read_excel("DatosMc.xlsx", sheet="9.1")
+```
+
+Código para crear base de datos para realizar los clusters con las variables PNA, Ingles y FTE:
+
+```{r}
+D1<-Datos[,c("PNA","Ingles","FTE" )]
+```
+
+# Procesamiento de datos
+Se puden usar variables numéricas en escala de razón o de intervalo, asimimsmo variables categóricas en escala nominal u ordinal expresadas como variables binarias (dummies).
+
+## Datos faltantes
+
+Para validar si existen datos faltantes en la base se utiliza el siguiente código:
+
+```{r}
+colSums(is.na(D1))
+```
+En este ejemplo no hay datos faltantes, en caso de tenerlos se tiene la opción de eliminarlos de la base o reemplazarlos por la media.
+
+Datos <- na.omit(Datos) # código para borrarlos
+Datos <- na.aggregate(data) #Código para reemplazarlos con la media de cada columna
+
+De la última función se requiere del paquete "zoo".
+
+## Estandarización de variables
+Para que la escala de las variables no sesgue los resultados, se deben de expresar todas las variables en una misma escala. Esto se hace estandarizando las variables. El código es:
+
+```{r}
+D1z <- scale(D1)
+```
+
+# Análisis cluster jerárquico
+
+## Medida de distancia
+Lo primero que se tiene que hacer es elegir una medida de distancia o de similitud, una de las más utilizadas es la medida de distancia Euclidiana.
+
+Con la medida de distancia se calcula para cada par de datos (en total 499,500 pares) la distancia que hay entre ellos, y se expresa en una matriz de distancias.
+
+```{r}
+d <- dist(D1z, method = "euclidean")
+```
+
+## Método de agrupación jerarquico
+
+Una vez elegida la medida de distancia, ahora se tiene que elegir el criterio para reunir los individuos en en grupo (cluster). El objetivo es que los individuos agrupados en un grupo sean lo más parecido posible y lo más diferente posible a los agrupados en otro grupo.
+
+Los métodos jerárquicos aglomerativos inician suponiendo que cada uno de los elementos que se pretende agrupar constituye un grupo, es decir, se tienen tantos grupos como observaciones disponibles. Basándose en una medida de similitud/disimilitud para saber qué tan parecidos o diferentes son las observaciones, éstas se fusionan hasta unir todos los elementos en un solo grupo. 
+
+El método de agrupamiento jérarquico más utilizado es el de ward. El método de Ward también llamado método de la distancia mínima, busca a los dos grupos cuya unión lleve al menor incremento en la varianza. Esto significa que en cada caso se debe de probar con todas las combinaciones posibles de grupos, calcular la suma de cuadrados y seleccionar aquel con valor menor. 
+
+#analysis cluster
+
+Para realizar las estimaciones en r, se utilizará el paquete "hcut".
+
+```{r}
+library(factoextra)
+HC <- hcut(d, hc_method = "ward.D")
+HC
+```
+## Dendograma --> decidir el número de grupos de observaciones y su distancia
+El dendograma es un gráfico en forma de árbol que permite visualizar las agrupaciones de los individuos basadas en una medida de similitud/disimilitud y un criterio de agrupamiento.
+
+En el eje de las Y viene la distancia (entre más distancia más diferencia entre los grupos) entre las agrupaciones y en el eje x las observaciones. Si se traza de manera horizontal una linea se puede determinar el número total de cluster contando las lineas que cruza. 
+
+Para vizualizar el dendograma en r se utilizará la función "fviz_dend". 
+```{r}
+fviz_dend(HC)
+```       
+- La altura de las líneas representa la distancia entre los grupos
+- Se elegirán 5 grupos, a pesar que sugirieron 2
+
+En este ejemplo se ven cinco agrupaciones (la función  sugiere dos marcados en color, los más grandes).
+
+Para vizualizar los cinco se debe de especificar nuevamente el código.
+
+Estimación de cinco cluster
+```{r}
+HC <- hcut(d, k=5, hc_method = "ward.D") #k es la cantidad de grupos
+```
+
+Vizualización de cinco clusters
+```{r}
+fviz_dend(HC, show_labels = FALSE, rect = TRUE)
+```
+
+## Visualización de los cluster estimados
+
+Primero tenemos que guardar en la base de datos los cluster. La siguiente función creará en la base de datos una columna con la identificación de cada observación a qué cluster pertenece.
+
+```{r}
+Datos$ClusterHC<-HC$cluster #a qué cluster pertenece cada observación
+```
+
+### Graficamente los clusters
+Para visualizar gráficamentelos cluster podemos hacer un gráfico de dispersión de las variables y que en el gráfico se marque en colores a qué cluster pertence cada observación. 
+
+Una opción es la función plot de r:
+
+Ejemplo: plot(Datos$PNA~Datos$Ingles, col = Datos$cluster)
+
+Sin embargo, se visualiza mejor con la función de r "fviz_cluster".
+
+#### Promedio nivel anterior vs FTE (carga académica)
+```{r}
+fviz_cluster(HC,
+             data=Datos[,c("PNA","FTE")],
+             stand = FALSE,
+             geom="point",
+             mean.point.size=5)+
+  scale_y_continuous(breaks = seq(0,1.2,0.1))+
+  scale_x_continuous(breaks = seq(70,100,5))
+```
+En la siguiente tabla se resumen los cluster observados en el gráfico. Para interpretarlos se tomo en cuenta los centroides de cada clusters, en el gráfico vienen marcados con un icono más grande.
+
+|Cluster |Descripción |
+| ---------- | ---------- |
+|1 |Alumnos de tiempo completo, FTE=1, con dispersión a sobre carga y con un promedio de prepa de aproximadamente 88 |
+|2 |Alumnos de tiempo completo, FTE=1, pero con promedio de prepa de aproximadamente 79 |
+|3 |Alumnos de tiempo completo, FTE=1, pero con promedio de prepa de aproximadamente 96 |
+|4 |Alumnos de tiempo parcial, FTE<1, pero con promedio de prepa de aproximadamente 86 |
+|5 |Alumnos de tiempo completo, FTE=1, pero con promedio de prepa de aproximadamente 88 |
+
+- Cluster 3 buen promedio y carga regular
+- Preocuparse por el cluster 2
+- El cluster 4 son estudiantes que meten menor carga para tener un promedio entre 87
+-el cluster 5 son alumnos regulares con promedio de 85
+- el 1 son chavos que meten sobrecarga y tienen el mismo desempeño que el cluster 5
+
+
+#### Promedio nivel anterior vs nivel de inglés
+```{r}
+fviz_cluster(HC,
+             data=Datos[,c("PNA","Ingles")],
+             geom="point",
+             mean.point.size=5,
+             stand = FALSE)
+  scale_y_continuous(breaks = seq(1,7,1))+
+  scale_x_continuous(breaks = seq(70,100,5))
+```
+En la siguiente tabla se resumen los cluster observados en el gráfico.
+- Cluster 1, buen promedio, carga completa, inglés les falta examen de certificación.
+
+
+|Cluster |Descripción |
+| ---------- | ---------- |
+|1 | Alumnos de tiempo completo, FTE=1, con dispersión a sobre carga, con un promedio de prepa de aproximadamente 88 y con nivel de inglés alto >6 |
+|2 | Alumnos de tiempo completo, FTE=1, con promedio de prepa de aproximadamente 79 y con nivel de inglés alto = 6 |
+|3 | Alumnos de tiempo completo, FTE=1, con promedio de prepa de aproximadamente 96 y con nivel de inglés alto = 6 |
+|4 | Alumnos de tiempo parcial, FTE<1, con promedio de prepa de aproximadamente 86 y con nivel de inglés medio alto = 5 |
+|5 | Alumnos de tiempo completo, FTE=1, con promedio de prepa de aproximadamente 88 y con nivel de inglés bajo < 3 |
+
+Podría hacerse el gráfico de FTE vs nivel de inglés pero con estos resumenes realizados ya se analizaron las tres variables, por lo tanto no es necesario.
+
+#### En tabla
+
+Otra manera de ver y describir los clusters es pedir una tabla donde venga la media de cada variable en cada cluster, con un total para poder comparar los grupos.
+
+
+```{r}
+library("dplyr")
+#Tabla con datos de las n=1000 observaciones
+Tabla1<-Datos %>%
+  summarize("n"=n(), 
+            "Promedio de prepa" = round(mean(PNA),1), 
+            "Nivel inglés" =round(mean(Ingles),1),
+            "Carga"=round(mean(FTE),1))
+
+#Tabla por cada cluster
+Tabla2<-Datos %>%
+  group_by(ClusterHC) %>% 
+  summarize("n"=n(), 
+            "Promedio de prepa" = round(mean(PNA),1), 
+            "Nivel inglés" =round(mean(Ingles),1),
+            "Carga"=round(mean(FTE),1))
+
+#Tabla agregada
+Tabla <-bind_rows(Tabla2, Tabla1)
+Tabla
+```
+
+Con estos datos se puede afinar la descripción de los cluster hecha gráficamente:
+
+|Cluster |Descripción |
+| ---------- | ---------- |
+|1 | Alumnos de tiempo completo, FTE=1, con un promedio de prepa de 87.6 y con nivel de inglés alto >6.6 |
+|2 | Alumnos de tiempo completo, FTE=1, con promedio de prepa de 79.4 y con nivel de inglés alto = 6.1 |
+|3 | Alumnos de tiempo completo, FTE=1, con promedio de prepa de 95.5 y con nivel de inglés alto = 6 |
+|4 | Alumnos de tiempo parcial, FTE=0.7, con promedio de prepa de 85.8 y con nivel de inglés medio alto = 5.2 |
+|5 | Alumnos de tiempo completo, FTE=1, con promedio de prepa de aproximadamente 87.3 y con nivel de inglés bajo 2.4 |
+
+Si bien los cluster creados se hacen bajo el principio de que los alumnos en un cluster sean muy similares pero muy diferntes a los de otro cluster, se podría realizar un ANOVA para validar las diferencias de las medias de las variables entre los clusters.
+
+#Descripción con todas las variables
+
+Primero las variables categóricas las convertiremos en variables binarias para describirlas en formato tabla. El paquete que se utilizará es "fastdummies" 
+
+    Creación de baraibles dummies
+```{r}
+library("fastDummies")
+DatosD<-dummy_cols(Datos[,2:14])
+```
+
+Ahora se realizará la tabla de las variables descriptivas, incluyendo las variables con las que se hicieron los clusters.
+
+```{r}
+library("dplyr")
+#Tabla con datos de las n=1000 observaciones
+Tabla1<-DatosD %>%
+  summarize("n"=n(), 
+            "Promedio de prepa" = round(mean(PNA),1), 
+            "Nivel inglés" =round(mean(Ingles),1),
+            "Carga"=round(mean(FTE),1),
+            "Edad"= round(mean(Edad),1),
+            "Prepa_TEC"=round(100*mean(PrepaTEC_SI),1),
+            "Esc_Ing" = round(100*mean(Escuela_Ingeniería),1),
+            "Esc_Neg" = round(100*mean(Escuela_Negocios),1),
+            "Esc_Otra"= round(100*mean(Escuela_Resto),1),
+            "Sexo_Mujer" = round(100*mean(Sexo_Mujer),1),
+            "Locales" = round(100*mean(Foraneo_Local),1),
+            "Foráneo_Nacional"= round(100*mean(Foraneo_SI_Nacional),1),
+            "Foráneo_Extranjero"= round(100*mean(Foraneo_SI_Extranjero),1),
+            "FGS" = round(100*mean(FGS_Sí),1),
+          "Prom_1erA"=round(mean(Prom1erA,na.rm = TRUE),1),
+          "Retención_1erA"=round(100*mean(Retencion1erA),1))
+
+#Tabla por cada cluster
+Tabla2<-DatosD %>%
+  group_by(ClusterHC) %>% 
+  summarize("n"=n(), 
+            "Promedio de prepa" = round(mean(PNA),1), 
+            "Nivel inglés" =round(mean(Ingles),1),
+            "Carga"=round(mean(FTE),1),
+            "Edad"= round(mean(Edad),1),
+            "Prepa_TEC"=round(100*mean(PrepaTEC_SI),1),
+            "Esc_Ing" = round(100*mean(Escuela_Ingeniería),1),
+            "Esc_Neg" = round(100*mean(Escuela_Negocios),1),
+            "Esc_Otra"= round(100*mean(Escuela_Resto),1),
+            "Sexo_Mujer" = round(100*mean(Sexo_Mujer),1),
+            "Locales" = round(100*mean(Foraneo_Local),1),
+            "Foráneo_Nacional"= round(100*mean(Foraneo_SI_Nacional),1),
+            "Foráneo_Extranjero"=round(100*mean(Foraneo_SI_Extranjero),1),
+            "FGS" = round(100*mean(FGS_Sí),1),
+          "Prom_1erA"=round(mean(Prom1erA,na.rm = TRUE),1),
+          "Retención_1erA"=round(100*mean(Retencion1erA),1))
+
+#Tabla agregada
+Tabla <-bind_rows(Tabla2, Tabla1)
+t(Tabla)    #Para transponer la tabla
+```
+
+# Cluster 1. Alumnos de tiempo completo, FTE=1, con un promedio de prepa de 87.6 y con nivel de inglés alto >6.6
+
+* n: es el cluster con más alumnos, 416
+* Edad: similar al promedio general, 18.7 vs 18.8.
+* Prepa TEC: tiene más alumnos de prepa tec, 65.4%, que el total 46.5%.
+* Escuela: tiene un % alumnos de ingeniería similar al total, 43% vs 43.9%, menos de negocios (25.0% vs 27.8%) y más de otras escuelas (32% vs 28.3%)
+* Sexo:  tiene % similar al total, 45.9%, que el total 46%
+* Locales: tiene más locales, 80.%, que el total, 76% y menos foráneos nacionales (16.6% vs 20.6%) e igual extranjeros (3.4% vs 3.4%)
+* FGS: es el que tiene menos alumnos primera generación, 5.8% vs 12.9%
+* Retención 1er año: Tienen una retención mayor, 91.1%, al total de alumnos, 89.5%.
+* Promedio 1er año: Tienen un promedio, 88.9, mayor al promedio total de alumnos, 88.1.
+
+# Cluster 2. Alumnos de tiempo completo, FTE=1, con promedio de prepa de 79.4 y con nivel de inglés alto = 6.1
+
+* n: es el cuarto cluster con más alumnos, 145.
+* Edad: similar al promedio general, 19.0 vs 18.8.
+* Prepa TEC: tiene menos alumnos de prepa tec, 44.1%, que el total 46.5%.
+* Escuela: tiene menos alumnos de ingeniería, 37.9% vs 43.9%, más de negocios (36.6% vs 27.8%) y menos de otras escuelas (25.5% vs 28.3%)
+* Sexo:  tiene menos mujeres 32.4%, que el total 46%
+* Locales: tiene más locales, 84.1%, que el total, 76% y menos foráneos nacionales (13.1% vs 20.6%) y extranjeros (2.8% vs 3.4%)
+* FGS: tiene menos alumnos primera generación, 11.0% vs 12.9%
+* Retención 1er año: Tienen una retención menor 83.4%, al total de alumnos, 89.5%.
+* Promedio 1er año: Tienen un promedio, 79.8, menor al promedio total de alumnos, 88.1.
+
+#Cluster 3. Alumnos de tiempo completo, FTE=1, con promedio de prepa de 95.5 y con nivel de inglés alto = 6
+
+* n: es el segundo cluster con más alumnos, 225
+* Edad: similar al promedio general, 18.6 vs 18.8.
+* Prepa TEC: tiene menos alumnos de prepa tec, 24.4%, vs 46.5%.
+* Escuela: tiene más alumnos de ingeniería, 52.9% vs 43.9%, menos de negocios (20.4% vs 27.8%) y menos de otras escuelas (26.7% vs 28.3%)
+* Sexo:  tiene más mujeres 55.6%, que el total 46%
+* Locales: tiene menos locales, 65.3%, que el total, 76% y más foráneos nacionales (29.3% vs 20.6%) y extranjeros (5.3% vs 3.4%)
+* FGS: tiene igual  alumnos primera generación que el total, 12.9%
+* Retención 1er año: Tienen una retención mayor 94.2%, al total de alumnos, 89.5%.
+* Promedio 1er año: Tienen un promedio, 93.3, mayor al promedio total de alumnos, 88.1.
+
+# Cluster 4. Alumnos de tiempo parcial, FTE=0.7, con promedio de prepa de 85.8 y con nivel de inglés medio alto = 5.2
+
+* n: es el cluster con menos alumnos, 67
+* Edad: similar al promedio general, 19.1 vs 18.8.
+* Prepa TEC: tiene menos alumnos de prepa tec, 26.9%, vs 46.5%.
+* Escuela: tiene menos alumnos de ingeniería, 32.8% vs 43.9%, más de negocios (46.3% vs 27.8%) y menos de otras escuelas (20.9% vs 28.3%)
+* Sexo:  tiene más mujeres 47.8%, que el total 46%
+* Locales: tiene menos locales, 70.1%, que el total, 76% y más foráneos nacionales (25.4% vs 20.6%) y extranjeros (4.5% vs 3.4%)
+* FGS: tiene más alumnos primera generación que el total, 22.4% vs 12.9%
+* Retención 1er año: Tienen una retención menor 79.1%, al total de alumnos, 89.5%.
+* Promedio 1er año: Tienen un promedio, 84.8, menor al promedio total de alumnos, 88.1.
+
+# Cluster 5. Alumnos de tiempo completo, FTE=1, con promedio de prepa de aproximadamente 87.3 y con nivel de inglés bajo 2.4
+
+* n: es el tercer cluster con más alumnos, 147
+* Edad: similar al promedio general, 18.5 vs 18.8.
+* Prepa TEC: tiene menos alumnos de prepa tec, 38.1%, vs 46.5%.
+* Escuela: tiene similar alumnos de ingeniería, 43.5% vs 43.9%, más de negocios (29.9% vs 27.8%) y menos de otras escuelas (26.5% vs 28.3%)
+* Sexo:  tiene menos mujeres 44.2%, que el total 46%
+* Locales: tiene menos locales, 75.5%, que el total, 76% y más foráneos nacionales (23.8% vs 20.6%) y menos extranjeros (0.7% vs 3.4%)
+* FGS: tiene más alumnos primera generación que el total, 30.6% vs 12.9%
+* Retención 1er año: Tienen una retención menor 88.4%, al total de alumnos, 89.5%.
+* Promedio 1er año: Tienen un promedio, 87.0, menor al promedio total de alumnos, 88.1.
+
+#Gyardar base de datos a excel
+
+```{r}
+library(writexl)
+write_xlsx(Datos,"Datos.xlsx")
+```

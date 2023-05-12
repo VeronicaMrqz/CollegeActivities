@@ -1,0 +1,31 @@
+---
+title: "Análisis cluster"
+author: "Veronica Marquez"
+date: "22/11/2021"
+output: word_document
+---
+
+
+```{r}
+library(readxl)
+Datos<-read_excel("DatosMc.xlsx", sheet="9.1")
+```
+
+```{r}
+D1<-Datos[,c("FTE","PNA","Ingles")]
+
+```
+
+#Revisar observacions faltantes
+```{r}
+colSums(is.na(D1))
+
+```
+
+#Estandarizar las variables
+```{r}
+D1z <- scale(D1)
+
+```
+
+
