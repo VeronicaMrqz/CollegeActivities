@@ -1,0 +1,289 @@
+---
+title: "Evidencia1"
+author: "VeronicaMárquez_A00827782"
+date: "3/3/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Evidencia 1
+
+```{r}
+library(tseries)
+library(fPortfolio)
+```
+
+Un portafolio o cartera de inversión es el conjunto de activos financieros en los que un individuo o empresa decide invertir. Para crearla, es necesario tomar en cuenta el perfil del inversor (la magnitud del riesgo que está dispuesto a asumir) y sus objetivos específicos (fijar una rentabilidad deseada). Además de esto, es importante diversificar la cartera, de manera que los activos más conservadores protegen al inversionista ante los que conllevan mayor riesgo, logrando así un equilibrio (BBVA, 2018). Lo anterior no fue realmente importante en el mundo de las inversiones sino hasta 1959, cuando Harry Markowitz publicó un libro donde desarrolló la teoría detrás de dicha idea (Mendizábal, Miera, Zubia, 2002). 
+	El modelo de Markowitz toma como base al individuo racional, lo que implica que el inversor rechaza el riesgo y busca la mayor utilidad. Por lo tanto, una cartera será eficiente si se cumple que brinda la máxima rentabilidad a un determinado nivel de riesgo. Cabe destacar que hay más de una cartera eficiente para cada inversor, pues distintas combinaciones de rentabilidad-riesgo pueden potencialmente satisfacer sus necesidades (a este conjunto de combinaciones se le llama frontera eficiente); no obstante, una vez que el individuo tiene a la vista todas sus opciones, podrá elegir su cartera óptima de acuerdo a sus preferencias (Mendizábal, Miera, Zubia, 2002). 
+
+Partiendo de lo anterior, en el presente informe se buscará definir la cartera óptima que brindaría mayor rentabilidad a un menor riesgo si se quisiera invertir en cinco distintas empresas. Para ello, se leerán las acciones del mercado de valores NASDAQ (National Association of Securities Dealers Automated Quotation), fundada en 1971 por la Asociación Nacional de Agentes de Valores (NASD por sus siglas en inglés) como el primer mercado de valores electrónico del mundo (Terrel, 2012), el cual se convirtió en la segunda bolsa de valores electrónica y automatizada más grande de Estados Unidos. Cuenta con más de 3,800 empresas y corporaciones, entre ellas las empresas más cotizadas en las ramas de electrónica, informática, telecomunicaciones o biotecnología (Ninety nine). 
+
+Entre las empresas que vamos a analizar se encuentran:
+
+- Amazon: la compañía líder global en el comercio electrónico, fundada en 1995, la cual ofrece una gran variedad de productos desde su sitio web tanto externos como propios, tales como: Kindle, Fire tablets y TV, Amazon Echo y Alexa; así como servicios de streaming a través de Amazon Prime. (Amazon.es)
+
+- Cisco Systems: fue fundada en 1984 y actualmente es el líder del mercado en áreas como routing, switching, comunicaciones unificadas, soluciones inalámbricas y seguridad. (Cisco Systems, 2008)
+
+- Microsoft: fundada en 1975, es la compañía de desarrollo de licencias y soporte de software para computadoras; creador de suite de informática, tabletas y servicios de videojuegos. (Microsoft corporation)
+
+- Nvidia: fundada en 1993, impulsó el crecimiento del mercado de juegos de PC al desarrollar unidades de procesamiento gráfico para computadoras (GPU), con lo cual dio pie a la inteligencia artificial moderna. (Nvidia)
+
+- Tesla: fundada en el 2003, es una empresa enfocada en la fabricación de automóviles eléctricos, además de productos de almacenamiento y generación de energía limpia. (Tesla)
+
+
+
+
+
+
+
+
+
+## Índice NDQ 100
+
+```{r}
+Indice<- get.hist.quote(instrument = "^NDX",
+ start=as.Date("2011-02-01"),
+ end=as.Date("2021-01-01"), quote = "AdjClose")
+plot(Indice, col="darkgreen", xlab="Fecha", ylab="AdjClose"); title(main="Evolución NDQ 100") 
+summary(Indice)
+```
+
+# Análisis de empresas NASDAQ 100
+A continuación se analizan las evoluciones des 2011 hasta la fecha, de cinco de las empresas más importantes cuyas acciones se encuentran en la bolsa NASDAQ.
+
+## Activo 1: AMAZON.COM INC.
+
+```{r}
+
+AMZN<- get.hist.quote(instrument = "AMZN",
+ start=as.Date("2011-02-01"),
+ end=as.Date("2021-01-01"), quote = "AdjClose")
+plot(AMZN, col="darkgreen", xlab="Fecha", ylab="AdjClose"); title(main="Evolución AMAZON")
+```
+## Activo 2: CISCO SYSTEMS
+
+```{r}
+CSCO<- get.hist.quote(instrument = "CSCO",
+ start=as.Date("2011-02-01"),
+ end=as.Date("2021-01-01"), quote = "AdjClose")
+plot(CSCO, col="darkgreen", xlab="Fecha", ylab="AdjClose"); title(main="Evolución Cisco Systems")
+```
+
+## Activo 3: MICROSOFT CORPORATION
+
+```{r}
+MSFT <- get.hist.quote(instrument = "MSFT",
+ start=as.Date("2011-02-01"),
+ end=as.Date("2021-01-01"), quote = "AdjClose")
+plot(MSFT, col="darkgreen", xlab="Fecha", ylab="AdjClose"); title(main="Evolución Microsoft Corporation")
+```
+
+#Activo 4: NVIDIA CORPORATION
+
+```{r}
+NVDA<- get.hist.quote(instrument = "NVDA",
+ start=as.Date("2011-02-01"),
+ end=as.Date("2021-01-01"), quote = "AdjClose")
+plot(NVDA, col="darkgreen", xlab="Fecha", ylab="AdjClose"); title(main="Evolución Nvidia Corporation")
+```
+
+## Activo 5: TESLA MOTORS
+
+```{r}
+TSLA <- get.hist.quote(instrument = "TSLA",
+ start=as.Date("2011-02-01"),
+ end=as.Date("2021-01-01"), quote = "AdjClose")
+plot(TSLA, col="darkgreen", xlab="Fecha", ylab="AdjClose"); title(main="Evolución Tesla Motors")
+
+```
+
+
+### Formando la cartera
+
+
+```{r}
+Cartera <- merge(AMZN,CSCO,MSFT,NVDA,TSLA, all = FALSE)
+names(Cartera)<-c("AMZN", "CSCO", "MSFT", "NVDA", "TSLA")
+plot(Cartera, main=" ", col="darkgreen", xlab="Fecha")
+title(main="Evolución de la Cartera")
+```
+
+
+## Rendimientos
+
+En logaritmos. 
+
+```{r}
+RetornoIndice<-diff(log(Indice))
+head(RetornoIndice,10)
+plot(RetornoIndice, main=" ", col="darkgreen", xlab="Fecha", ylab="Rendimientos")
+title(main="Rendimientos del Indice NASDAQ 100")
+
+```
+
+
+### Rendimientos de la cartera (log)
+
+```{r}
+Rendimientos<-diff(log(Cartera))
+plot(Rendimientos, main=" ", col="darkgreen", xlab="Fecha")
+title(main="Rendimientos de la Cartera")
+
+```
+
+##Rendimientos globales
+
+
+```{r}
+plot(RetornoIndice, main=" ", col="darkgreen", xlab="Fecha", ylab="Rendimientos")
+title(main="Rendimientos del Indice NASDAQ 100")
+```
+
+
+##Rendimientos y volatilidad
+
+```{r}
+RendimientoPromedio = c(mean(RetornoIndice),mean(Rendimientos$AMZN),mean(Rendimientos$CSCO),mean(Rendimientos$MSFT),mean(Rendimientos$NVDA),mean(Rendimientos$TSLA))
+
+Volatilidad = c(sd(RetornoIndice),sd(Rendimientos$AMZN),sd(Rendimientos$CSCO),sd(Rendimientos$MSFT),sd(Rendimientos$NVDA),sd(Rendimientos$TSLA) )
+
+Tabla1 = data.frame (rbind(RendimientoPromedio,Volatilidad))
+colnames(Tabla1)<- c("NASDAQ100","AMZN", "CSCO", "MSFT", "NVDA", "TSLA")
+Tabla1
+```
+
+
+```{r}
+View(Tabla1)
+```
+
+Si analizamos los rendimientos promedios (esperados), la volatilidad del mercado y de los activos que conforman la cartera se tiene que la rentabilidad media diaria del mercado (índice S&P 500) es de 0,042%, por debajo de los rendimientos de las acciones de Apple Inc., Home Depot y JP Morgan, las cuales tienen rendimientos promedios de 0,10%; 0,08% y 0,049% respectivamente. Asimismo, los rendimientos de la acción de Johnson & Johnson son ligeramente superior, al ser de 0.044%. Mientras que el rendimiento de la acción de Exxon Mobil está por debajo del rendimiento del mercado, al ser de -0.0018%.
+
+
+En lo referente a la volatilidad, vemos que la desviación típica del S&P 500 es de 1.1%, por debajo de casi todos los valores que conforman la cartera excepto de la acción de Johnson & Johnson, que presenta la volatilidad más baja de las acciones que conforman la cartea, con una desviación típica de 1.07%. El activo más volátil es a la vez uno de los de mayor rentabilidad (después de la acción de Home Depot, que presenta la rentabilidad más elevada), que es la acción de JMP, con una desviación típica de 1,8%.
+
+
+### Matriz de covarianzas y de correlaciones
+
+
+```{r}
+## Calculo la varianza (riesgo) de los activos individuales 
+var(RetornoIndice)*100
+```
+
+## Matriz de Varianzas-Covarianzas en %
+```{r}
+Cov <- cov(Rendimientos)*100
+Cov
+min(Cov)
+```
+
+
+#Varianzas de los rendimientos
+```{r}
+Y1 <- var(Rendimientos$CSCO)
+Y1
+
+Y2 <- var(Rendimientos$AMZN)
+Y2
+
+cov(Rendimientos$CSCO, Rendimientos$AMZN )
+```
+
+#Medias
+```{r}
+mean(Rendimientos$CSCO)
+
+mean(Rendimientos$AMZN)
+
+(0.3694)*(0.0004074259) + (0.63059)*(0.001178047)
+```
+
+
+
+```{r}
+(0.3694)^2 * (0.0003930937)+ (0.63059)^2*(0.0002842421) + 2*(0.3694)*(0.63059)*(0.000130293)
+
+```
+
+
+
+
+
+
+
+
+_______________________
+
+## Frontera eficiente
+
+
+
+```{r}
+espcartera<-portfolioSpec()
+
+setRiskFreeRate(espcartera)<- -0.001 ##Rentabilidad Activo Libre de Riesgo
+setNFrontierPoints(espcartera) <- 20
+constraints="LongOnly"
+Frontera <- portfolioFrontier(as.timeSeries(Rendimientos),spec=espcartera,constraints )
+Frontera
+```
+
+```{r}
+frontierPlot(Frontera)
+grid()
+tangencyPoints(Frontera, pch = 19, col = "red", cex=2)
+tangencyLines(Frontera, col="darkgreen", pch=19, cex=2)
+minvariancePoints(Frontera, col="blue", pch=19, cex=2)
+monteCarloPoints(Frontera, mcSteps=500, col="green", cex=0.001)
+```
+## Portafolio Eficiente
+
+Calculo del portafolio o cartera eficiente, el cual como se ha expuesto anteriormente, es un portafolio que se encuentra en la frontera eficiente:
+
+```{r}
+efPortfolio <- efficientPortfolio(as.timeSeries(Rendimientos),espcartera,constraints)
+efPortfolio 
+```
+
+
+## Portafolio tangente
+
+Calculo el portafolio o cartera tangente, el cual es el portafolio con la relación rentabilidad-riesgo más alta de la frontera eficiente.
+
+El siguiente cálculo, se realiza minimizando el ratio o índice de Sharpe (Sharpe Ratio) para una tasa libre de riesgo dada, por lo que se obtiene el portafolio con el ratio de Sharpe más elevado. El ratio de Sharpe muestra la rentabilidad ajustada por la tasa libre de riesgo y el riesgo de la covarianza.
+
+```{r}
+tgPortfolio <- tangencyPortfolio(as.timeSeries(Rendimientos),espcartera,constraints)
+tgPortfolio
+```
+
+Grafico el portafolio eficiente y portafolio tangente:
+
+```{r}
+weightsPie(efPortfolio)
+mtext(text = "Portafolio eficiente", side = 3, line = 1.5,font = 2, cex = 0.7, adj = 0)
+weightsPie(tgPortfolio)
+mtext(text = "Portafolio tangente", side = 3, line = 1.5,font = 2, cex = 0.7, adj = 0)
+```
+
+Por lo anterior, la cartera o portafolio eficiente estaría conformado por:
+
+Acción de AAPL con un peso del 7.2%.
+Acción de XOM con un peso del 11.9%.
+Acción de HD con un peso del 15.3%.
+Acción de JNP con un peso del 65.6%.
+
+Por último, la cartera o portafolio tangente estaría conformado por:
+
+Acción de AAPL con un peso del 19.3%.
+Acción de HD con un peso del 29.6%.
+Acción de JNP con un peso del 51%.
+
+
+
+
+

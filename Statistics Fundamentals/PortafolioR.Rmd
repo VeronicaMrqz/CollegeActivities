@@ -1,0 +1,294 @@
+---
+title: "Portafolio eficiente"
+author: "  "
+date: "25/2/2021"
+output: html_document
+description: "https://mx.investing.com/indices/us-spx-500-related-instruments"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r, echo = FALSE}
+library(tseries)
+library(fPortfolio)
+
+```
+
+El S&P 500® es ampliamente considerado como la mejor medición de acciones de alta capitalización de EE. UU. Hay más de US\$ 11.2 billones invertidos en referencia a este índice y los activos vinculados al índice abarcan aproximadamente US\$ 4.6 billones de este total. El índice incluye 500 empresas principales y abarca aproximadamente 80% de la capitalización de mercado disponible.
+
+## Índice S&P 500
+```{r}
+Indice<- get.hist.quote(instrument = "AMZN",
+ start=as.Date("2011-02-01"),
+ end=as.Date("2021-01-01"), quote = "AdjClose")
+plot(Indice, col="darkgreen", xlab="Fecha", ylab="AdjClose"); title(main="Evolución AMZN") 
+summary(Indice)
+```
+
+
+### Activos
+```{r}
+## Activo 1: The Home Depot, Inc
+HD<- get.hist.quote(instrument = "HD",
+ start=as.Date("2010-03-01"),
+ end=as.Date("2021-03-01"), quote = "AdjClose")
+plot(HD, col="darkgreen", xlab="Fecha", ylab="AdjClose"); title(main="Evolución Home Depot")
+```
+
+
+
+```{r}
+
+## Activo 2: Exxon Mobil Corporation
+XOM<- get.hist.quote(instrument = "XOM",
+ start=as.Date("2010-03-01"),
+ end=as.Date("2021-03-01"), quote = "AdjClose")
+plot(XOM, col="darkgreen", xlab="Fecha", ylab="AdjClose"); title(main="Evolución Exxon Mobil")
+```
+
+
+```{r}
+## Activo 2: Johnson & Johnson
+JNJ <- get.hist.quote(instrument = "JNJ",
+ start=as.Date("2010-01-04"),
+ end=as.Date("2021-03-01"), quote = "AdjClose")
+plot(JNJ, col="darkgreen", xlab="Fecha", ylab="AdjClose"); title(main="Evolución Johnson & J")
+```
+
+
+```{r}
+#Activo 3: Apple
+AAPL<- get.hist.quote(instrument = "AAPL",
+ start=as.Date("2010-01-04"),
+ end=as.Date("2021-03-01"), quote = "AdjClose")
+plot(AAPL, col="darkgreen", xlab="Fecha", ylab="AdjClose"); title(main="Evolución APPLE")
+head(AAPL)
+summary(AAPL)
+
+```
+
+
+```{r}
+## Activo 4: JP Morgan Chase & Co
+JPM <- get.hist.quote(instrument = "JPM",
+ start=as.Date("2010-01-04"),
+ end=as.Date("2021-03-01"), quote = "AdjClose")
+plot(JPM, col="darkgreen", xlab="Fecha", ylab="AdjClose"); title(main="Evolución JP Morgan")
+
+```
+
+
+
+
+
+```{r}
+PBP<- get.hist.quote(instrument = "PBP",
+ start=as.Date("2010-03-01"),
+ end=as.Date("2021-03-01"), quote = "AdjClose")
+plot(PBP, col="darkgreen", xlab="Fecha", ylab="AdjClose"); title(main="PowerShares S&P 500 BuyWrite Porfolio")
+```
+
+
+
+```{r}
+SPY<- get.hist.quote(instrument = "SPY",
+ start=as.Date("2010-03-01"),
+ end=as.Date("2021-03-01"), quote = "AdjClose")
+plot(SPY, col="darkgreen", xlab="Fecha", ylab="AdjClose"); title(main=" SPDR S&P 500")
+```
+
+
+```{r}
+SPY<- get.hist.quote(instrument = "IVV",
+ start=as.Date("2010-03-01"),
+ end=as.Date("2021-03-01"), quote = "AdjClose")
+plot(SPY, col="darkgreen", xlab="Fecha", ylab="AdjClose"); title(main=" ishares S&P 500")
+```
+
+
+
+```{r}
+VOOV<- get.hist.quote(instrument = "VOOV",
+ start=as.Date("2010-03-01"),
+ end=as.Date("2021-03-01"), quote = "AdjClose")
+plot(VOOV, col="darkgreen", xlab="Fecha", ylab="AdjClose"); title(main=" Vanguard S&P 500 CA")
+```
+
+
+
+
+```{r}
+RWL<- get.hist.quote(instrument = "RWL",
+ start=as.Date("2010-03-01"),
+ end=as.Date("2021-03-01"), quote = "AdjClose")
+plot(RWL, col="darkgreen", xlab="Fecha", ylab="AdjClose"); title(main="Invesco S&P 500 Revenue")
+```
+
+
+
+
+```{r}
+BAUG<- get.hist.quote(instrument = "BAUG",
+ start=as.Date("2010-03-01"),
+ end=as.Date("2021-03-01"), quote = "AdjClose")
+plot(BAUG, col="darkgreen", xlab="Fecha", ylab="AdjClose"); title(main="Innovator S&P 500 Buffer - August")
+```
+
+
+
+
+
+### Formando la cartera
+
+```{r}
+Cartera <- merge(AAPL,XOM,HD,JPM,JNJ, all = FALSE)
+names(Cartera)<-c("AAPL", "XOM", "HD", "JPM", "JNJ")
+plot(Cartera, main=" ", col="darkgreen", xlab="Fecha")
+title(main=" la Cartera")
+```
+
+
+
+
+## Rendimientos
+
+En logaritmos. 
+
+```{r}
+RetornoIndice<-diff(log(Indice))
+head(RetornoIndice,10)
+plot(RetornoIndice, main=" ", col="darkgreen", xlab="Fecha", ylab="Rendimientos")
+title(main="Rendimientos del Indice S&P 500")
+
+```
+
+### Rendimientos de la cartera (log)
+
+```{r}
+Rendimientos<-diff(log(Cartera))
+plot(Rendimientos, main=" ", col="darkgreen", xlab="Fecha")
+title(main="Rendimientos de la Cartera")
+
+```
+
+
+
+```{r}
+plot(RetornoIndice, main=" ", col="darkgreen", xlab="Fecha", ylab="Rendimientos")
+title(main="Rendimientos del Indice S&P 500")
+```
+
+
+
+```{r}
+Rendimientos<-diff(log(Cartera))
+plot(Rendimientos, main=" ", col="darkgreen", xlab="Fecha")
+title(main="Rendimientos de la Cartera")
+
+```
+
+
+
+```{r}
+RendimientoPromedio = c(mean(RetornoIndice),mean(Rendimientos$AAPL),mean(Rendimientos$XOM),mean(Rendimientos$HD),mean(Rendimientos$JPM),mean(Rendimientos$JNJ))
+
+Volatilidad = c(sd(RetornoIndice),sd(Rendimientos$AAPL),sd(Rendimientos$XOM),sd(Rendimientos$HD),sd(Rendimientos$JPM),sd(Rendimientos$JNJ) )
+
+Tabla1 = data.frame (rbind(RendimientoPromedio,Volatilidad))
+colnames(Tabla1)<- c("S&P500","AAPL", "XOM", "HD", "JPM", "JNJ")
+Tabla1
+```
+
+
+
+Si analizamos los rendimientos promedios (esperados), la volatilidad del mercado y de los activos que conforman la cartera se tiene que la rentabilidad media diaria del mercado (índice S&P 500) es de 0,042%, por debajo de los rendimientos de las acciones de Apple Inc., Home Depot y JP Morgan, las cuales tienen rendimientos promedios de 0,10%; 0,08% y 0,049% respectivamente. Asimismo, los rendimientos de la acción de Johnson & Johnson son ligeramente superior, al ser de 0.044%. Mientras que el rendimiento de la acción de Exxon Mobil está por debajo del rendimiento del mercado, al ser de -0.0018%.
+
+
+En lo referente a la volatilidad, vemos que la desviación típica del S&P 500 es de 1.1%, por debajo de casi todos los valores que conforman la cartera excepto de la acción de Johnson & Johnson, que presenta la volatilidad más baja de las acciones que conforman la cartea, con una desviación típica de 1.07%. El activo más volátil es a la vez uno de los de mayor rentabilidad (después de la acción de Home Depot, que presenta la rentabilidad más elevada), que es la acción de JMP, con una desviación típica de 1,8%.
+
+
+
+
+### Matriz de covarianzas y de correlaciones
+
+
+```{r}
+## Calculo la varianza (riesgo) de los activos individuales 
+var(RetornoIndice)*100
+```
+
+## Matriz de Varianzas-Covarianzas en %
+```{r}
+Cov <- cov(Rendimientos)*100
+Cov
+```
+
+
+
+
+## Frontera eficiente
+
+```{r}
+espcartera<-portfolioSpec()
+
+setRiskFreeRate(espcartera)<- -0.001 ##Rentabilidad Activo Libre de Riesgo
+setNFrontierPoints(espcartera) <- 20
+constraints="LongOnly"
+Frontera <- portfolioFrontier(as.timeSeries(Rendimientos),spec=espcartera,constraints )
+Frontera
+```
+
+```{r}
+frontierPlot(Frontera)
+grid()
+tangencyPoints(Frontera, pch = 19, col = "red", cex=2)
+tangencyLines(Frontera, col="darkgreen", pch=19, cex=2)
+minvariancePoints(Frontera, col="blue", pch=19, cex=2)
+monteCarloPoints(Frontera, mcSteps=500, col="green", cex=0.001)
+```
+
+Calculo del portafolio o cartera eficiente, el cual como se ha expuesto anteriormente, es un portafolio que se encuentra en la frontera eficiente:
+
+```{r}
+efPortfolio <- efficientPortfolio(as.timeSeries(Rendimientos),espcartera,constraints)
+efPortfolio 
+```
+
+
+## Portafolio tangente
+
+Calculo el portafolio o cartera tangente, el cual es el portafolio con la relación rentabilidad-riesgo más alta de la frontera eficiente.
+
+El siguiente cálculo, se realiza minimizando el ratio o índice de Sharpe (Sharpe Ratio) para una tasa libre de riesgo dada, por lo que se obtiene el portafolio con el ratio de Sharpe más elevado. El ratio de Sharpe muestra la rentabilidad ajustada por la tasa libre de riesgo y el riesgo de la covarianza.
+
+```{r}
+tgPortfolio <- tangencyPortfolio(as.timeSeries(Rendimientos),espcartera,constraints)
+tgPortfolio
+```
+
+Grafico el portafolio eficiente y portafolio tangente:
+
+```{r}
+weightsPie(efPortfolio)
+mtext(text = "Portafolio eficiente", side = 3, line = 1.5,font = 2, cex = 0.7, adj = 0)
+weightsPie(tgPortfolio)
+mtext(text = "Portafolio tangente", side = 3, line = 1.5,font = 2, cex = 0.7, adj = 0)
+```
+
+Por lo anterior, la cartera o portafolio eficiente estaría conformado por:
+
+Acción de AAPL con un peso del 7.2%.
+Acción de XOM con un peso del 11.9%.
+Acción de HD con un peso del 15.3%.
+Acción de JNP con un peso del 65.6%.
+
+Por último, la cartera o portafolio tangente estaría conformado por:
+
+Acción de AAPL con un peso del 19.3%.
+Acción de HD con un peso del 29.6%.
+Acción de JNP con un peso del 51%.
+
+

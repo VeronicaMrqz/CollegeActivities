@@ -1,0 +1,144 @@
+---
+title: "Portafolio"
+author: "VeronicaM"
+date: "3/3/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Mi Portafolio
+
+```{r}
+library(tseries)
+library(fPortfolio)
+```
+
+Leyendo las acciones de la bolsa de valores s&P 500
+## Índice S&P 500
+
+```{r}
+Indice<- get.hist.quote(instrument = "^GSPC",
+ start=as.Date("2010-01-04"),
+ end=as.Date("2021-01-31"), quote = "AdjClose")
+plot(Indice, col="darkgreen", xlab="Fecha", ylab="AdjClose"); title(main="Evolución S&P 5OO") 
+summary(Indice)
+```
+
+### Activos
+```{r}
+## Activo 1: The Home Depot, Inc
+HD<- get.hist.quote(instrument = "HD",
+ start=as.Date("2010-01-04"),
+ end=as.Date("2021-01-31"), quote = "AdjClose")
+plot(HD, col="darkgreen", xlab="Fecha", ylab="AdjClose"); title(main="Evolución Home Depot")
+```
+## Activo 2: Exxon Mobil Corporation
+
+```{r}
+XOM<- get.hist.quote(instrument = "XOM",
+ start=as.Date("2010-01-04"),
+ end=as.Date("2021-01-31"), quote = "AdjClose")
+plot(XOM, col="darkgreen", xlab="Fecha", ylab="AdjClose"); title(main="Evolución Exxon Mobil")
+```
+
+## Activo 2: Johnson & Johnson
+
+```{r}
+JNJ <- get.hist.quote(instrument = "JNJ",
+ start=as.Date("2010-01-04"),
+ end=as.Date("2021-01-31"), quote = "AdjClose")
+plot(JNJ, col="darkgreen", xlab="Fecha", ylab="AdjClose"); title(main="Evolución Johnson & J")
+```
+
+#Activo 3: Apple
+
+```{r}
+AAPL<- get.hist.quote(instrument = "AAPL",
+ start=as.Date("2010-01-04"),
+ end=as.Date("2021-01-31"), quote = "AdjClose")
+plot(AAPL, col="darkgreen", xlab="Fecha", ylab="AdjClose"); title(main="Evolución APPLE")
+head(AAPL)
+summary(AAPL)
+
+```
+
+## Activo 4: JP Morgan Chase & Co
+
+```{r}
+JPM <- get.hist.quote(instrument = "JPM",
+ start=as.Date("2010-01-04"),
+ end=as.Date("2021-01-31"), quote = "AdjClose")
+plot(JPM, col="darkgreen", xlab="Fecha", ylab="AdjClose"); title(main="Evolución JP Morgan")
+
+```
+
+
+Harry Markowitz
+
+
+### Formando la cartera
+
+```{r}
+Cartera <- merge(AAPL,XOM,HD,JPM,JNJ, all = FALSE)
+names(Cartera)<-c("AAPL", "XOM", "HD", "JPM", "JNJ")
+plot(Cartera, main=" ", col="darkgreen", xlab="Fecha")
+title(main="Evolución de la Cartera")
+```
+
+
+## Rendimientos
+
+En logaritmos. 
+
+```{r}
+RetornoIndice<-diff(log(Indice))
+head(RetornoIndice,10)
+plot(RetornoIndice, main=" ", col="darkgreen", xlab="Fecha", ylab="Rendimientos")
+title(main="Rendimientos del Indice S&P 500")
+
+```
+
+
+### Rendimientos de la cartera (log)
+
+```{r}
+Rendimientos<-diff(log(Cartera))
+plot(Rendimientos, main=" ", col="darkgreen", xlab="Fecha")
+title(main="Rendimientos de la Cartera")
+
+```
+
+##Rendimientos globales
+
+
+```{r}
+plot(RetornoIndice, main=" ", col="darkgreen", xlab="Fecha", ylab="Rendimientos")
+title(main="Rendimientos del Indice S&P 500")
+```
+
+
+##Rendimientos y volatilidad
+
+```{r}
+RendimientoPromedio = c(mean(RetornoIndice),mean(Rendimientos$AAPL),mean(Rendimientos$XOM),mean(Rendimientos$HD),mean(Rendimientos$JPM),mean(Rendimientos$JNJ))
+
+Volatilidad = c(sd(RetornoIndice),sd(Rendimientos$AAPL),sd(Rendimientos$XOM),sd(Rendimientos$HD),sd(Rendimientos$JPM),sd(Rendimientos$JNJ) )
+
+Tabla1 = data.frame (rbind(RendimientoPromedio,Volatilidad))
+colnames(Tabla1)<- c("S&P500","AAPL", "XOM", "HD", "JPM", "JNJ")
+Tabla1
+```
+
+
+```{r}
+View(Tabla1)
+```
+
+
+
+
+
+
