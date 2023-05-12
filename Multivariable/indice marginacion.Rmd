@@ -1,0 +1,97 @@
+---
+title: "Indice Marginacion"
+author: "Veronica Marquez"
+date: "8/11/2021"
+output: word_document
+---
+
+#Abrirl el excel
+```{r}
+library(readxl)
+Datos <- read_excel("DatosM.xlsx", sheet = "2.1")
+  
+```
+
+#Filtrar en base de datos
+```{r}
+D1<- Datos[, 6:14] #todos los renglones solo de las columnas de la 6-14
+```
+
+#Identificar valores perdidos
+
+```{r}
+colSums(is.na(D1))
+
+```
+
+No hay valores perdidos u observaciones faltantes
+
+#Analisis descriptivos
+
+```{r}
+library(psych)
+describe(D1)
+```
+
+Se observa mayor problema en los ingresos, personas que viven en localidades con menos de 5000 habitantes, luego educación y al último las condiciones de vivienda.
+
+No se ven problemas de datos atípicos, y no hay normalidad, pero no vamos a hacer inferencias con los factores estimados.
+
+```{r}
+library(car)
+scatterplotMatrix(D1,smooth=FALSE)
+```
+
+
+No veo curvas, veo observacions atípicas en la variable OVSDE y OVSEE, pero veamos la evaluación del análisis para ver si nos preocupamos. 
+
+
+```{r}
+library(psych)
+corPlot(D1,cex =.5, upper=FALSE ,stars = TRUE, show.legend=FALSE)
+
+```
+H0: correlación = 0
+H1: correlación =! 0
+
+Todas son diferentes de cero, pero hay algunas variables que tienen correlacion débil, pero diferente de cero.
+
+#Determinate
+
+```{r}
+R <- cor(D1)
+det(R)
+```
+
+Es cercano a cero, si hay correlación entre las variables
+
+#Prueba de contrasde de esfericidad de Bartlett
+H0: R = I (no se debe de utilizar la técnica de análisis de factores)
+Ha: R =! I (sí se puede aplicar)
+
+
+```{r}
+library(psych)
+R<-cor(D1)
+cortest.bartlett(R,n=2469)
+```
+Se rechaza H0 a favor de Ha si es posible aplicar la tecnica de analisis de factores
+
+
+#índice Kaiser-Meyer-Olkin
+
+```{r}
+library(psych)
+R<-cor(D1)
+KMO(R)
+
+```
+
+La evaluación de los resultados del análisis va a ser de calidad "Buena".
+
+Segun la regla de quitar la que tenga el indice menor de 0.5,ya no se puede mejorar el analisis porque no se pueden quitar variables.
+
+
+
+
+
